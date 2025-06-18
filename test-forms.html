@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Test - Expense Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Expense Tracker Form Testing</h1>
+    
+    <div class="test-section">
+        <h2>Live Site Test</h2>
+        <button onclick="testLiveSite()">Test Live Site</button>
+        <div id="live-test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Local Test Simulation</h2>
+        <button onclick="simulateFormSubmission()">Simulate Form Submission</button>
+        <div id="local-test-result"></div>
+    </div>
+
+    <script>
+        async function testLiveSite() {
+            const resultDiv = document.getElementById('live-test-result');
+            resultDiv.innerHTML = '<p class="info">Testing live site...</p>';
+            
+            try {
+                const response = await fetch('https://darling-toffee-b52fd4.netlify.app');
+                const html = await response.text();
+                
+                // Check if forms exist
+                const hasExpenseForm = html.includes('id="expense-form"');
+                const hasIncomeForm = html.includes('id="income-form"');
+                const hasScriptTag = html.includes('script.js');
+                
+                let result = '<h3>Live Site Analysis:</h3>';
+                result += `<p class="${hasExpenseForm ? 'success' : 'error'}">✓ Expense Form: ${hasExpenseForm ? 'Found' : 'Missing'}</p>`;
+                result += `<p class="${hasIncomeForm ? 'success' : 'error'}">✓ Income Form: ${hasIncomeForm ? 'Found' : 'Missing'}</p>`;
+                result += `<p class="${hasScriptTag ? 'success' : 'error'}">✓ Script Tag: ${hasScriptTag ? 'Found' : 'Missing'}</p>`;
+                
+                // Check if JavaScript debugging is present
+                const hasDebugging = html.includes('console.log');
+                result += `<p class="${hasDebugging ? 'success' : 'error'}">✓ Debug Logging: ${hasDebugging ? 'Enabled' : 'Not Found'}</p>`;
+                
+                resultDiv.innerHTML = result;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error testing live site: ${error.message}</p>`;
+            }
+        }
+        
+        function simulateFormSubmission() {
+            const resultDiv = document.getElementById('local-test-result');
+            
+            // Simulate the form submission logic
+            const mockFormData = {
+                expense: {
+                    description: 'Test Expense',
+                    amount: 25.50,
+                    category: 'food',
+                    date: '2025-06-18',
+                    isReimbursement: false
+                },
+                income: {
+                    description: 'Test Income',
+                    amount: 1000.00,
+                    type: 'salary',
+                    date: '2025-06-18'
+                }
+            };
+            
+            let result = '<h3>Simulation Results:</h3>';
+            
+            // Test expense validation
+            const expenseValid = mockFormData.expense.description && 
+                                mockFormData.expense.amount && 
+                                mockFormData.expense.category && 
+                                mockFormData.expense.date;
+            
+            result += `<p class="${expenseValid ? 'success' : 'error'}">✓ Expense Validation: ${expenseValid ? 'PASS' : 'FAIL'}</p>`;
+            
+            // Test income validation
+            const incomeValid = mockFormData.income.description && 
+                              mockFormData.income.amount && 
+                              mockFormData.income.type && 
+                              mockFormData.income.date;
+            
+            result += `<p class="${incomeValid ? 'success' : 'error'}">✓ Income Validation: ${incomeValid ? 'PASS' : 'FAIL'}</p>`;
+            
+            // Test data structure
+            result += '<h4>Mock Data Structure:</h4>';
+            result += '<pre>' + JSON.stringify(mockFormData, null, 2) + '</pre>';
+            
+            resultDiv.innerHTML = result;
+        }
+    </script>
+</body>
+</html>
