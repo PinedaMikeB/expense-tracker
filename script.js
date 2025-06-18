@@ -19,12 +19,14 @@ class ExpenseTracker {
     }
 
     async init() {
+        console.log('ExpenseTracker init() called');
         this.setupEventListeners();
         this.loadCategories();
         
-        // Try to load from cloud first, fallback to localStorage
-        await this.loadFromCloud();
+        // Load data without blocking the UI
+        this.loadDataAsync();
         
+        // Initialize UI immediately with empty data
         this.updateSummary();
         this.renderExpenses();
         this.renderIncome();
@@ -36,6 +38,25 @@ class ExpenseTracker {
         // Setup auto-sync every 30 seconds
         if (this.cloudConfig.autoSync) {
             setInterval(() => this.syncToCloud(), 30000);
+        }
+        
+        console.log('ExpenseTracker init() completed');
+    }
+
+    async loadDataAsync() {
+        try {
+            // Try to load from cloud first, fallback to localStorage
+            await this.loadFromCloud();
+            
+            // Re-render everything after data loads
+            this.updateSummary();
+            this.renderExpenses();
+            this.renderIncome();
+            this.renderReimbursements();
+            this.renderCategories();
+            this.renderAnalytics();
+        } catch (error) {
+            console.error('Error loading data:', error);
         }
     }
 
@@ -59,31 +80,60 @@ class ExpenseTracker {
     }
 
     setupEventListeners() {
+        console.log('Setting up event listeners');
+        
         // Form submissions
-        document.getElementById('expense-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addExpense();
-        });
+        const expenseForm = document.getElementById('expense-form');
+        const incomeForm = document.getElementById('income-form');
+        const categoryForm = document.getElementById('category-form');
+        
+        if (expenseForm) {
+            expenseForm.addEventListener('submit', (e) => {
+                console.log('Expense form submitted');
+                e.preventDefault();
+                this.addExpense();
+            });
+            console.log('Expense form listener attached');
+        } else {
+            console.error('Expense form not found!');
+        }
 
-        document.getElementById('income-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addIncome();
-        });
+        if (incomeForm) {
+            incomeForm.addEventListener('submit', (e) => {
+                console.log('Income form submitted');
+                e.preventDefault();
+                this.addIncome();
+            });
+            console.log('Income form listener attached');
+        } else {
+            console.error('Income form not found!');
+        }
 
-        document.getElementById('category-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addCategory();
-        });
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', (e) => {
+                console.log('Category form submitted');
+                e.preventDefault();
+                this.addCategory();
+            });
+            console.log('Category form listener attached');
+        } else {
+            console.error('Category form not found!');
+        }
     }
 
     addExpense() {
+        console.log('addExpense() called');
+        
         const description = document.getElementById('expense-description').value;
         const amount = parseFloat(document.getElementById('expense-amount').value);
         const category = document.getElementById('expense-category').value;
         const date = document.getElementById('expense-date').value;
         const isReimbursement = document.getElementById('expense-reimbursement').checked;
 
+        console.log('Form values:', { description, amount, category, date, isReimbursement });
+
         if (!description || !amount || !category || !date) {
+            console.log('Validation failed - missing fields');
             this.showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -100,6 +150,8 @@ class ExpenseTracker {
             timestamp: new Date().toISOString()
         };
 
+        console.log('Adding expense:', expense);
+
         this.expenses.unshift(expense);
         this.saveExpenses();
         this.renderExpenses();
@@ -108,15 +160,22 @@ class ExpenseTracker {
         this.renderAnalytics();
         this.resetForm('expense-form');
         this.showNotification('Expense added successfully!', 'success');
+        
+        console.log('Expense added successfully');
     }
 
     addIncome() {
+        console.log('addIncome() called');
+        
         const description = document.getElementById('income-description').value;
         const amount = parseFloat(document.getElementById('income-amount').value);
         const type = document.getElementById('income-type').value;
         const date = document.getElementById('income-date').value;
 
+        console.log('Income form values:', { description, amount, type, date });
+
         if (!description || !amount || !type || !date) {
+            console.log('Validation failed - missing fields');
             this.showNotification('Please fill in all fields', 'error');
             return;
         }
@@ -130,6 +189,8 @@ class ExpenseTracker {
             timestamp: new Date().toISOString()
         };
 
+        console.log('Adding income:', income);
+
         this.income.unshift(income);
         this.saveIncome();
         this.renderIncome();
@@ -137,6 +198,8 @@ class ExpenseTracker {
         this.renderAnalytics();
         this.resetForm('income-form');
         this.showNotification('Income added successfully!', 'success');
+        
+        console.log('Income added successfully');
     }
 
     addCategory() {
@@ -170,18 +233,33 @@ class ExpenseTracker {
 
     // Data persistence methods
     saveExpenses() {
+        console.log('Saving expenses to localStorage');
         localStorage.setItem('expenses', JSON.stringify(this.expenses));
-        this.syncToCloud(); // Auto-sync to cloud
+        
+        // Async cloud sync without blocking UI
+        this.syncToCloud().catch(error => {
+            console.error('Cloud sync failed:', error);
+        });
     }
 
     saveIncome() {
+        console.log('Saving income to localStorage');
         localStorage.setItem('income', JSON.stringify(this.income));
-        this.syncToCloud(); // Auto-sync to cloud
+        
+        // Async cloud sync without blocking UI
+        this.syncToCloud().catch(error => {
+            console.error('Cloud sync failed:', error);
+        });
     }
 
     saveCategories() {
+        console.log('Saving categories to localStorage');
         localStorage.setItem('categories', JSON.stringify(this.categories));
-        this.syncToCloud(); // Auto-sync to cloud
+        
+        // Async cloud sync without blocking UI
+        this.syncToCloud().catch(error => {
+            console.error('Cloud sync failed:', error);
+        });
     }
 
     // Rendering methods
@@ -772,7 +850,13 @@ function showTab(tabName) {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.expenseTracker = new ExpenseTracker();
+    console.log('DOM Content Loaded - Initializing Expense Tracker');
+    try {
+        window.expenseTracker = new ExpenseTracker();
+        console.log('Expense Tracker initialized successfully');
+    } catch (error) {
+        console.error('Failed to initialize Expense Tracker:', error);
+    }
 });
 
     renderIncome() {
