@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <meta name="description" content="A comprehensive expense tracking web application with reimbursement management, categories, and reminders">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23667eea'/%3E%3Ctext x='50' y='60' font-family='Arial' font-size='40' fill='white' text-anchor='middle'%3E💰%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-wallet"></i> Expense Tracker</h1>
+            <div class="sync-controls">
+                <button class="btn btn-sm btn-secondary" onclick="expenseTracker.forceSyncToCloud()" title="Sync to Cloud">
+                    <i class="fas fa-cloud-upload-alt"></i> Sync
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="expenseTracker.refreshFromCloud()" title="Refresh from Cloud">
+                    <i class="fas fa-cloud-download-alt"></i> Refresh
+                </button>
+                <span id="sync-status" class="sync-status">Local Storage</span>
+            </div>
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Income</h3>
+                    <p id="total-income">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Total Expenses</h3>
+                    <p id="total-expenses">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Pending Reimbursements</h3>
+                    <p id="total-reimbursements">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Net Balance</h3>
+                    <p id="net-balance">$0.00</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('expenses')">
+                <i class="fas fa-minus-circle"></i> Expenses
+            </button>
+            <button class="tab-button" onclick="showTab('reimbursements')">
+                <i class="fas fa-money-bill-wave"></i> Reimbursements
+            </button>
+            <button class="tab-button" onclick="showTab('categories')">
+                <i class="fas fa-tags"></i> Categories
+            </button>
+            <button class="tab-button" onclick="showTab('analytics')">
+                <i class="fas fa-chart-line"></i> Analytics
+            </button>
+        </div>
+
+        <!-- Expenses Tab -->
+        <div id="expenses-tab" class="tab-content active">
+            <div class="form-section">
+                <h2>Add New Expense</h2>
+                <form id="expense-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expense-description">Description</label>
+                            <input type="text" id="expense-description" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expense-amount">Amount ($)</label>
+                            <input type="number" id="expense-amount" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expense-category">Category</label>
+                            <select id="expense-category" required>
+                                <option value="">Select Category</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expense-date">Date</label>
+                            <input type="date" id="expense-date" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="expense-reimbursement">
+                                <span class="checkmark"></span>
+                                This expense is for reimbursement
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Expense
+                    </button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h2>Add Income/Payment</h2>
+                <form id="income-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="income-description">Description</label>
+                            <input type="text" id="income-description" placeholder="e.g., Salary, Freelance, Reimbursement" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="income-amount">Amount ($)</label>
+                            <input type="number" id="income-amount" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="income-type">Type</label>
+                            <select id="income-type" required>
+                                <option value="">Select Type</option>
+                                <option value="salary">Salary</option>
+                                <option value="freelance">Freelance</option>
+                                <option value="reimbursement">Reimbursement Received</option>
+                                <option value="bonus">Bonus</option>
+                                <option value="investment">Investment Return</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="income-date">Date</label>
+                            <input type="date" id="income-date" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Add Income
+                    </button>
+                </form>
+            </div>
+
+            <div class="table-section">
+                <h2>Recent Expenses</h2>
+                <div class="table-container">
+                    <table id="expenses-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <h2>Recent Income</h2>
+                <div class="table-container">
+                    <table id="income-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="income-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Reimbursements Tab -->
+        <div id="reimbursements-tab" class="tab-content">
+            <div class="table-section">
+                <h2>Pending Reimbursements</h2>
+                <div class="batch-payment-controls">
+                    <button type="button" class="btn btn-success" onclick="expenseTracker.processBatchPayments()">
+                        <i class="fas fa-save"></i> Save Payments
+                    </button>
+                    <div class="payment-date-group" style="display: none;">
+                        <label for="payment-date-input">Payment Date:</label>
+                        <input type="date" id="payment-date-input">
+                        <button type="button" class="btn btn-primary" onclick="expenseTracker.confirmBatchPayments()">
+                            <i class="fas fa-check"></i> Confirm
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="expenseTracker.cancelBatchPayments()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="reimbursements-table">
+                        <thead>
+                            <tr>
+                                <th>Select</th>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Payment Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reimbursements-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Tab -->
+        <div id="categories-tab" class="tab-content">
+            <div class="form-section">
+                <h2>Add New Category</h2>
+                <form id="category-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="category-name">Category Name</label>
+                            <input type="text" id="category-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="category-color">Color</label>
+                            <input type="color" id="category-color" value="#007bff">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Category
+                    </button>
+                </form>
+            </div>
+
+            <div class="categories-grid" id="categories-grid">
+                <!-- Categories will be populated here -->
+            </div>
+        </div>
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+            <div class="analytics-section">
+                <h2>📊 Spending Analytics</h2>
+                
+                <!-- Quick Stats -->
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-icon">📈</div>
+                        <div class="analytics-info">
+                            <h3 id="monthly-spending">$0.00</h3>
+                            <p>Monthly Net</p>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">📅</div>
+                        <div class="analytics-info">
+                            <h3 id="avg-daily">$0.00</h3>
+                            <p>Daily Average Expense</p>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">🏆</div>
+                        <div class="analytics-info">
+                            <h3 id="top-category">-</h3>
+                            <p>Top Expense Category</p>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <div class="analytics-icon">💰</div>
+                        <div class="analytics-info">
+                            <h3 id="pending-reimburse">$0.00</h3>
+                            <p>Pending Reimbursements</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-section">
+                    <div class="chart-container">
+                        <h3>💸 Category Breakdown</h3>
+                        <canvas id="categoryChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>📈 Monthly Trend</h3>
+                        <canvas id="trendChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Financial Tips -->
+                <div class="tips-section">
+                    <h3>💡 Smart Financial Tips</h3>
+                    <div id="financial-tips" class="tips-grid">
+                        <!-- Tips will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
