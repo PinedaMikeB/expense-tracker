@@ -96,8 +96,10 @@ class ExpenseTracker {
         const category = document.getElementById('expense-category').value;
         const date = document.getElementById('expense-date').value;
         const isReimbursement = document.getElementById('expense-reimbursement').checked;
+        const form = document.getElementById('expense-form');
+        const editingId = form.dataset.editingId;
 
-        console.log('Form values:', { description, amount, category, date, isReimbursement });
+        console.log('Form values:', { description, amount, category, date, isReimbursement, editingId });
 
         if (!description || !amount || !category || !date) {
             console.log('Validation failed - missing fields');
@@ -105,30 +107,54 @@ class ExpenseTracker {
             return;
         }
 
-        const expense = {
-            id: Date.now(),
-            description,
-            amount,
-            category,
-            date,
-            isReimbursement,
-            isPaid: false,
-            paymentDate: null,
-            timestamp: new Date().toISOString()
-        };
+        if (editingId) {
+            // Update existing expense
+            const expenseIndex = this.expenses.findIndex(exp => exp.id == editingId);
+            if (expenseIndex !== -1) {
+                this.expenses[expenseIndex] = {
+                    ...this.expenses[expenseIndex],
+                    description,
+                    amount,
+                    category,
+                    date,
+                    isReimbursement
+                };
+                console.log('Updating expense:', this.expenses[expenseIndex]);
+                this.showNotification('Expense updated successfully!', 'success');
+            }
+            
+            // Reset form to add mode
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.innerHTML = submitButton.originalText || '<i class="fas fa-plus"></i> Add Expense';
+            delete form.dataset.editingId;
+            
+        } else {
+            // Create new expense
+            const expense = {
+                id: Date.now(),
+                description,
+                amount,
+                category,
+                date,
+                isReimbursement,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            };
 
-        console.log('Adding expense:', expense);
+            console.log('Adding new expense:', expense);
+            this.expenses.unshift(expense);
+            this.showNotification('Expense added successfully!', 'success');
+        }
 
-        this.expenses.unshift(expense);
         this.saveExpenses();
         this.renderExpenses();
         this.renderReimbursements();
         this.updateSummary();
         this.renderAnalytics();
         this.resetForm('expense-form');
-        this.showNotification('Expense added successfully!', 'success');
         
-        console.log('Expense added successfully');
+        console.log('Expense operation completed successfully');
     }
 
     addIncome() {
@@ -138,8 +164,10 @@ class ExpenseTracker {
         const amount = parseFloat(document.getElementById('income-amount').value);
         const type = document.getElementById('income-type').value;
         const date = document.getElementById('income-date').value;
+        const form = document.getElementById('income-form');
+        const editingId = form.dataset.editingId;
 
-        console.log('Income form values:', { description, amount, type, date });
+        console.log('Income form values:', { description, amount, type, date, editingId });
 
         if (!description || !amount || !type || !date) {
             console.log('Validation failed - missing fields');
@@ -147,26 +175,49 @@ class ExpenseTracker {
             return;
         }
 
-        const income = {
-            id: Date.now(),
-            description,
-            amount,
-            type,
-            date,
-            timestamp: new Date().toISOString()
-        };
+        if (editingId) {
+            // Update existing income
+            const incomeIndex = this.income.findIndex(inc => inc.id == editingId);
+            if (incomeIndex !== -1) {
+                this.income[incomeIndex] = {
+                    ...this.income[incomeIndex],
+                    description,
+                    amount,
+                    type,
+                    date
+                };
+                console.log('Updating income:', this.income[incomeIndex]);
+                this.showNotification('Income updated successfully!', 'success');
+            }
+            
+            // Reset form to add mode
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.innerHTML = submitButton.originalText || '<i class="fas fa-plus"></i> Add Income';
+            delete form.dataset.editingId;
+            
+        } else {
+            // Create new income
+            const income = {
+                id: Date.now(),
+                description,
+                amount,
+                type,
+                date,
+                timestamp: new Date().toISOString()
+            };
 
-        console.log('Adding income:', income);
+            console.log('Adding new income:', income);
+            this.income.unshift(income);
+            this.showNotification('Income added successfully!', 'success');
+        }
 
-        this.income.unshift(income);
         this.saveIncome();
         this.renderIncome();
         this.updateSummary();
         this.renderAnalytics();
         this.resetForm('income-form');
-        this.showNotification('Income added successfully!', 'success');
         
-        console.log('Income added successfully');
+        console.log('Income operation completed successfully');
     }
 
     addCategory() {
@@ -261,15 +312,22 @@ class ExpenseTracker {
         const totalReimbursementsEl = document.getElementById('total-reimbursements');
         const netBalanceEl = document.getElementById('net-balance');
 
-        if (totalIncomeEl) totalIncomeEl.textContent = `$${totalIncome.toFixed(2)}`;
-        if (totalExpensesEl) totalExpensesEl.textContent = `$${totalExpenses.toFixed(2)}`;
-        if (totalReimbursementsEl) totalReimbursementsEl.textContent = `$${pendingReimbursements.toFixed(2)}`;
+        if (totalIncomeEl) totalIncomeEl.textContent = this.formatCurrency(totalIncome);
+        if (totalExpensesEl) totalExpensesEl.textContent = this.formatCurrency(totalExpenses);
+        if (totalReimbursementsEl) totalReimbursementsEl.textContent = this.formatCurrency(pendingReimbursements);
         if (netBalanceEl) {
-            netBalanceEl.textContent = `$${netBalance.toFixed(2)}`;
+            netBalanceEl.textContent = this.formatCurrency(netBalance);
             netBalanceEl.style.color = netBalance >= 0 ? '#4caf50' : '#f44336';
         }
 
         console.log('Summary updated:', { totalIncome, totalExpenses, pendingReimbursements, netBalance });
+    }
+
+    formatCurrency(amount) {
+        return `₱${amount.toLocaleString('en-PH', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        })}`;
     }
 
     loadFromLocalStorage() {
@@ -295,9 +353,12 @@ class ExpenseTracker {
                 <td>${this.formatDate(income.date)}</td>
                 <td>${income.description}</td>
                 <td><span class="income-type-badge income-${income.type}">${income.type}</span></td>
-                <td>$${income.amount.toFixed(2)}</td>
+                <td>${this.formatCurrency(income.amount)}</td>
                 <td>
                     <div class="action-buttons">
+                        <button class="btn btn-primary btn-sm" onclick="expenseTracker.editIncome(${income.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button class="btn btn-danger btn-sm" onclick="expenseTracker.deleteIncome(${income.id})">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -333,9 +394,12 @@ class ExpenseTracker {
                         ${category?.name || 'Unknown'}
                     </span>
                 </td>
-                <td>$${expense.amount.toFixed(2)}</td>
+                <td>${this.formatCurrency(expense.amount)}</td>
                 <td>
                     <div class="action-buttons">
+                        <button class="btn btn-primary btn-sm" onclick="expenseTracker.editExpense(${expense.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button class="btn btn-danger btn-sm" onclick="expenseTracker.deleteExpense(${expense.id})">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -375,7 +439,7 @@ class ExpenseTracker {
                         ${category?.name || 'Unknown'}
                     </span>
                 </td>
-                <td>$${expense.amount.toFixed(2)}</td>
+                <td>${this.formatCurrency(expense.amount)}</td>
                 <td>
                     ${expense.paymentDate ? this.formatDate(expense.paymentDate) : '-'}
                 </td>
@@ -409,20 +473,151 @@ class ExpenseTracker {
     }
 
     renderAnalytics() {
-        // Simple analytics
-        const monthlyExpenseTotal = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const avgDaily = monthlyExpenseTotal / 30;
+        // Enhanced analytics calculations
+        const totalExpenses = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const totalIncome = this.income.reduce((sum, income) => sum + income.amount, 0);
+        const avgDaily = totalExpenses / 30;
         const pendingReimbursements = this.expenses
             .filter(expense => expense.isReimbursement && !expense.isPaid)
             .reduce((sum, expense) => sum + expense.amount, 0);
+        const monthlyNet = totalIncome - totalExpenses;
 
+        // Find top expense category
+        const categoryTotals = {};
+        this.expenses.forEach(expense => {
+            if (!categoryTotals[expense.category]) {
+                categoryTotals[expense.category] = 0;
+            }
+            categoryTotals[expense.category] += expense.amount;
+        });
+
+        const topCategoryId = Object.keys(categoryTotals).reduce((a, b) => 
+            categoryTotals[a] > categoryTotals[b] ? a : b, Object.keys(categoryTotals)[0]);
+        
+        const topCategory = this.categories.find(cat => cat.id === topCategoryId);
+        const topCategoryName = topCategory ? topCategory.name : '-';
+
+        // Update analytics display
         const monthlySpendingEl = document.getElementById('monthly-spending');
         const avgDailyEl = document.getElementById('avg-daily');
         const pendingReimburseEl = document.getElementById('pending-reimburse');
+        const topCategoryEl = document.getElementById('top-category');
 
-        if (monthlySpendingEl) monthlySpendingEl.textContent = `$${monthlyExpenseTotal.toFixed(2)}`;
-        if (avgDailyEl) avgDailyEl.textContent = `$${avgDaily.toFixed(2)}`;
-        if (pendingReimburseEl) pendingReimburseEl.textContent = `$${pendingReimbursements.toFixed(2)}`;
+        if (monthlySpendingEl) monthlySpendingEl.textContent = this.formatCurrency(monthlyNet);
+        if (avgDailyEl) avgDailyEl.textContent = this.formatCurrency(avgDaily);
+        if (pendingReimburseEl) pendingReimburseEl.textContent = this.formatCurrency(pendingReimbursements);
+        if (topCategoryEl) topCategoryEl.textContent = topCategoryName;
+
+        // Generate smart financial tips
+        this.generateFinancialTips(totalIncome, totalExpenses, categoryTotals, monthlyNet);
+    }
+
+    generateFinancialTips(income, expenses, categoryTotals, netBalance) {
+        const tipsContainer = document.getElementById('financial-tips');
+        if (!tipsContainer) return;
+
+        const tips = [];
+        
+        // Income vs Expenses analysis
+        if (netBalance > 0) {
+            const savingsRate = (netBalance / income) * 100;
+            if (savingsRate >= 20) {
+                tips.push({
+                    icon: '🌟',
+                    title: 'Excellent Savings!',
+                    message: `You're saving ${savingsRate.toFixed(1)}% of your income. Keep up the great work!`
+                });
+            } else if (savingsRate >= 10) {
+                tips.push({
+                    icon: '👍',
+                    title: 'Good Savings Habit',
+                    message: `You're saving ${savingsRate.toFixed(1)}% - try to reach 20% for better financial security.`
+                });
+            } else {
+                tips.push({
+                    icon: '📈',
+                    title: 'Boost Your Savings',
+                    message: `Currently saving ${savingsRate.toFixed(1)}%. Aim for at least 10% of your income.`
+                });
+            }
+        } else {
+            tips.push({
+                icon: '⚠️',
+                title: 'Spending Alert',
+                message: `You're spending ${this.formatCurrency(Math.abs(netBalance))} more than you earn. Review your expenses.`
+            });
+        }
+
+        // Category-specific tips
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+
+        if (sortedCategories.length > 0) {
+            const topCategory = sortedCategories[0];
+            const categoryName = this.categories.find(cat => cat.id === topCategory[0])?.name || topCategory[0];
+            const percentage = (topCategory[1] / expenses) * 100;
+            
+            if (percentage > 40) {
+                tips.push({
+                    icon: '🎯',
+                    title: 'Category Focus',
+                    message: `${categoryName} takes up ${percentage.toFixed(1)}% of your spending. Consider optimizing this area.`
+                });
+            }
+        }
+
+        // Daily spending tips
+        const dailyAvg = expenses / 30;
+        if (dailyAvg > 1000) {
+            tips.push({
+                icon: '💡',
+                title: 'Daily Spending Tip',
+                message: `Your daily average is ${this.formatCurrency(dailyAvg)}. Try the 24-hour rule before big purchases.`
+            });
+        }
+
+        // Motivational tips
+        const motivationalTips = [
+            {
+                icon: '🏆',
+                title: 'Financial Goal',
+                message: 'Set up an emergency fund equal to 6 months of expenses for financial security.'
+            },
+            {
+                icon: '💰',
+                title: 'Smart Spending',
+                message: 'Track every peso! Small expenses add up quickly over time.'
+            },
+            {
+                icon: '🎯',
+                title: 'Budgeting Tip',
+                message: 'Follow the 50-30-20 rule: 50% needs, 30% wants, 20% savings.'
+            },
+            {
+                icon: '📊',
+                title: 'Review Regularly',
+                message: 'Review your expenses weekly to stay on track with your financial goals.'
+            }
+        ];
+
+        // Add a random motivational tip
+        tips.push(motivationalTips[Math.floor(Math.random() * motivationalTips.length)]);
+
+        // Render tips
+        tipsContainer.innerHTML = '';
+        tips.forEach(tip => {
+            const tipDiv = document.createElement('div');
+            tipDiv.className = 'tip-card';
+            tipDiv.innerHTML = `
+                <div class="tip-icon">${tip.icon}</div>
+                <div class="tip-content">
+                    <h4>${tip.title}</h4>
+                    <p>${tip.message}</p>
+                </div>
+            `;
+            tipsContainer.appendChild(tipDiv);
+        });
     }
 
     formatDate(dateString) {
@@ -452,6 +647,63 @@ class ExpenseTracker {
             this.renderAnalytics();
             this.showNotification('Expense deleted successfully!', 'success');
         }
+    }
+
+    editExpense(id) {
+        const expense = this.expenses.find(exp => exp.id === id);
+        if (!expense) return;
+
+        // Fill the form with existing data
+        document.getElementById('expense-description').value = expense.description;
+        document.getElementById('expense-amount').value = expense.amount;
+        document.getElementById('expense-category').value = expense.category;
+        document.getElementById('expense-date').value = expense.date;
+        document.getElementById('expense-reimbursement').checked = expense.isReimbursement;
+
+        // Change the form to edit mode
+        const form = document.getElementById('expense-form');
+        const submitButton = form.querySelector('button[type="submit"]');
+        
+        // Store the original text and update button
+        if (!submitButton.originalText) {
+            submitButton.originalText = submitButton.innerHTML;
+        }
+        submitButton.innerHTML = '<i class="fas fa-save"></i> Update Expense';
+        
+        // Store the ID being edited
+        form.dataset.editingId = id;
+
+        // Scroll to form
+        form.scrollIntoView({ behavior: 'smooth' });
+        this.showNotification('Editing expense - update the fields and click "Update Expense"', 'info');
+    }
+
+    editIncome(id) {
+        const income = this.income.find(inc => inc.id === id);
+        if (!income) return;
+
+        // Fill the form with existing data
+        document.getElementById('income-description').value = income.description;
+        document.getElementById('income-amount').value = income.amount;
+        document.getElementById('income-type').value = income.type;
+        document.getElementById('income-date').value = income.date;
+
+        // Change the form to edit mode
+        const form = document.getElementById('income-form');
+        const submitButton = form.querySelector('button[type="submit"]');
+        
+        // Store the original text and update button
+        if (!submitButton.originalText) {
+            submitButton.originalText = submitButton.innerHTML;
+        }
+        submitButton.innerHTML = '<i class="fas fa-save"></i> Update Income';
+        
+        // Store the ID being edited
+        form.dataset.editingId = id;
+
+        // Scroll to form
+        form.scrollIntoView({ behavior: 'smooth' });
+        this.showNotification('Editing income - update the fields and click "Update Income"', 'info');
     }
 
     deleteIncome(id) {
