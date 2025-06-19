@@ -426,6 +426,7 @@ class ExpenseTracker {
             const categoriesDoc = await window.db
                 .collection('users')
                 .doc(this.currentUser.uid)
+                .collection('settings')
                 .doc('categories')
                 .get();
             
@@ -525,6 +526,7 @@ class ExpenseTracker {
             await window.db
                 .collection('users')
                 .doc(this.currentUser.uid)
+                .collection('settings')
                 .doc('categories')
                 .set({ categories: this.categories });
             
