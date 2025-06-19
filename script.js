@@ -1,12 +1,66 @@
-// Expense Tracker Application - Fixed Version
+// Expense Tracker Application - Firebase Cloud Sync Version
 class ExpenseTracker {
     constructor() {
         this.expenses = [];
         this.income = [];
         this.categories = this.getDefaultCategories();
         this.selectedForPayment = new Set();
+        this.currentUser = null;
+        this.isOnline = true;
         
-        this.init();
+        // Wait for Firebase to initialize before starting the app
+        this.waitForFirebase().then(() => {
+            this.init();
+        });
+    }
+
+    async waitForFirebase() {
+        // Wait for Firebase to be available
+        while (!window.firebase || !window.db || !window.auth) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Set up auth state listener
+        window.auth.onAuthStateChanged((user) => {
+            this.handleAuthStateChange(user);
+        });
+        
+        console.log('🔥 Firebase ready');
+    }
+
+    handleAuthStateChange(user) {
+        this.currentUser = user;
+        
+        const loginForm = document.getElementById('login-form');
+        const userInfo = document.getElementById('user-info');
+        const userEmail = document.getElementById('user-email');
+        const syncStatus = document.getElementById('sync-status');
+        
+        if (user) {
+            // User is signed in
+            loginForm.style.display = 'none';
+            userInfo.style.display = 'flex';
+            userEmail.textContent = user.email;
+            syncStatus.textContent = 'Cloud Sync';
+            syncStatus.style.color = '#4caf50';
+            
+            console.log('👤 User signed in:', user.email);
+            
+            // Load data from cloud
+            this.loadFromCloud();
+        } else {
+            // User is signed out
+            loginForm.style.display = 'flex';
+            userInfo.style.display = 'none';
+            syncStatus.textContent = 'Local Storage';
+            syncStatus.style.color = '#666';
+            
+            console.log('👤 User signed out');
+            
+            // Load from localStorage as fallback
+            this.loadFromLocalStorage();
+            this.updateUI();
+        }
     }
 
     async init() {
@@ -147,7 +201,7 @@ class ExpenseTracker {
             this.showNotification('Expense added successfully!', 'success');
         }
 
-        this.saveExpenses();
+        this.saveExpensesToCloud();
         this.renderExpenses();
         this.renderReimbursements();
         this.updateSummary();
@@ -211,7 +265,7 @@ class ExpenseTracker {
             this.showNotification('Income added successfully!', 'success');
         }
 
-        this.saveIncome();
+        this.saveIncomeToCloud();
         this.renderIncome();
         this.updateSummary();
         this.renderAnalytics();
@@ -249,7 +303,7 @@ class ExpenseTracker {
         console.log('Adding category:', category);
 
         this.categories.push(category);
-        this.saveCategories();
+        this.saveCategoriesToCloud();
         this.loadCategories();
         this.renderCategories();
         this.resetForm('category-form');
@@ -334,6 +388,162 @@ class ExpenseTracker {
         this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
         this.income = JSON.parse(localStorage.getItem('income')) || [];
         this.categories = JSON.parse(localStorage.getItem('categories')) || this.getDefaultCategories();
+    }
+
+    async loadFromCloud() {
+        if (!this.currentUser) return;
+        
+        try {
+            console.log('☁️ Loading data from cloud...');
+            
+            // Load expenses
+            const expensesSnapshot = await window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('expenses')
+                .orderBy('timestamp', 'desc')
+                .get();
+            
+            this.expenses = expensesSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Load income
+            const incomeSnapshot = await window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('income')
+                .orderBy('timestamp', 'desc')
+                .get();
+            
+            this.income = incomeSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Load categories
+            const categoriesDoc = await window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .doc('categories')
+                .get();
+            
+            if (categoriesDoc.exists) {
+                this.categories = categoriesDoc.data().categories || this.getDefaultCategories();
+            } else {
+                this.categories = this.getDefaultCategories();
+                await this.saveCategoriesToCloud();
+            }
+            
+            console.log('✅ Data loaded from cloud');
+            this.updateUI();
+            
+        } catch (error) {
+            console.error('❌ Error loading from cloud:', error);
+            this.showNotification('Failed to load data from cloud. Using local data.', 'warning');
+            this.loadFromLocalStorage();
+            this.updateUI();
+        }
+    }
+
+    async saveExpensesToCloud() {
+        if (!this.currentUser) {
+            this.saveExpenses(); // Fallback to localStorage
+            return;
+        }
+        
+        try {
+            const batch = window.db.batch();
+            const userExpensesRef = window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('expenses');
+            
+            // Clear existing expenses and add new ones
+            const existingExpenses = await userExpensesRef.get();
+            existingExpenses.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            // Add current expenses
+            this.expenses.forEach(expense => {
+                const docRef = userExpensesRef.doc(expense.id.toString());
+                batch.set(docRef, expense);
+            });
+            
+            await batch.commit();
+            console.log('✅ Expenses saved to cloud');
+            
+        } catch (error) {
+            console.error('❌ Error saving expenses to cloud:', error);
+            this.saveExpenses(); // Fallback to localStorage
+        }
+    }
+
+    async saveIncomeToCloud() {
+        if (!this.currentUser) {
+            this.saveIncome(); // Fallback to localStorage
+            return;
+        }
+        
+        try {
+            const batch = window.db.batch();
+            const userIncomeRef = window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('income');
+            
+            // Clear existing income and add new ones
+            const existingIncome = await userIncomeRef.get();
+            existingIncome.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            // Add current income
+            this.income.forEach(income => {
+                const docRef = userIncomeRef.doc(income.id.toString());
+                batch.set(docRef, income);
+            });
+            
+            await batch.commit();
+            console.log('✅ Income saved to cloud');
+            
+        } catch (error) {
+            console.error('❌ Error saving income to cloud:', error);
+            this.saveIncome(); // Fallback to localStorage
+        }
+    }
+
+    async saveCategoriesToCloud() {
+        if (!this.currentUser) {
+            this.saveCategories(); // Fallback to localStorage
+            return;
+        }
+        
+        try {
+            await window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .doc('categories')
+                .set({ categories: this.categories });
+            
+            console.log('✅ Categories saved to cloud');
+            
+        } catch (error) {
+            console.error('❌ Error saving categories to cloud:', error);
+            this.saveCategories(); // Fallback to localStorage
+        }
+    }
+
+    updateUI() {
+        this.updateSummary();
+        this.renderExpenses();
+        this.renderIncome();
+        this.renderReimbursements();
+        this.renderCategories();
+        this.renderAnalytics();
+        this.loadCategories();
     }
 
     renderIncome() {
@@ -640,7 +850,7 @@ class ExpenseTracker {
     deleteExpense(id) {
         if (confirm('Are you sure you want to delete this expense?')) {
             this.expenses = this.expenses.filter(expense => expense.id !== id);
-            this.saveExpenses();
+            this.saveExpensesToCloud();
             this.renderExpenses();
             this.renderReimbursements();
             this.updateSummary();
@@ -709,7 +919,7 @@ class ExpenseTracker {
     deleteIncome(id) {
         if (confirm('Are you sure you want to delete this income entry?')) {
             this.income = this.income.filter(income => income.id !== id);
-            this.saveIncome();
+            this.saveIncomeToCloud();
             this.renderIncome();
             this.updateSummary();
             this.renderAnalytics();
@@ -738,13 +948,43 @@ class ExpenseTracker {
         }, 5000);
     }
 
-    // Cloud sync placeholder methods
-    forceSyncToCloud() {
-        this.showNotification('Cloud sync feature coming soon!', 'info');
+    // Cloud sync methods
+    async forceSyncToCloud() {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to sync to cloud', 'warning');
+            return;
+        }
+        
+        try {
+            this.showNotification('Syncing to cloud...', 'info');
+            
+            await Promise.all([
+                this.saveExpensesToCloud(),
+                this.saveIncomeToCloud(),
+                this.saveCategoriesToCloud()
+            ]);
+            
+            this.showNotification('Successfully synced to cloud!', 'success');
+        } catch (error) {
+            console.error('Sync error:', error);
+            this.showNotification('Failed to sync to cloud', 'error');
+        }
     }
 
-    refreshFromCloud() {
-        this.showNotification('Cloud refresh feature coming soon!', 'info');
+    async refreshFromCloud() {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to refresh from cloud', 'warning');
+            return;
+        }
+        
+        try {
+            this.showNotification('Refreshing from cloud...', 'info');
+            await this.loadFromCloud();
+            this.showNotification('Successfully refreshed from cloud!', 'success');
+        } catch (error) {
+            console.error('Refresh error:', error);
+            this.showNotification('Failed to refresh from cloud', 'error');
+        }
     }
 
     // Reimbursement batch payment methods
@@ -791,12 +1031,74 @@ function showTab(tabName) {
     }
 }
 
+// Authentication functions
+async function signUp() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    if (!email || !password) {
+        alert('Please enter both email and password');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters long');
+        return;
+    }
+    
+    try {
+        await window.auth.createUserWithEmailAndPassword(email, password);
+        console.log('✅ User created successfully');
+        
+        // Clear form
+        document.getElementById('auth-email').value = '';
+        document.getElementById('auth-password').value = '';
+        
+    } catch (error) {
+        console.error('❌ Sign up error:', error);
+        alert('Sign up failed: ' + error.message);
+    }
+}
+
+async function signIn() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    if (!email || !password) {
+        alert('Please enter both email and password');
+        return;
+    }
+    
+    try {
+        await window.auth.signInWithEmailAndPassword(email, password);
+        console.log('✅ User signed in successfully');
+        
+        // Clear form
+        document.getElementById('auth-email').value = '';
+        document.getElementById('auth-password').value = '';
+        
+    } catch (error) {
+        console.error('❌ Sign in error:', error);
+        alert('Sign in failed: ' + error.message);
+    }
+}
+
+async function signOut() {
+    try {
+        await window.auth.signOut();
+        console.log('✅ User signed out successfully');
+    } catch (error) {
+        console.error('❌ Sign out error:', error);
+        alert('Sign out failed: ' + error.message);
+    }
+}
+
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content Loaded - Initializing Expense Tracker');
+    console.log('DOM Content Loaded - Initializing Expense Tracker with Firebase');
     try {
         window.expenseTracker = new ExpenseTracker();
-        console.log('Expense Tracker initialized successfully');
+        console.log('Expense Tracker with Firebase initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Expense Tracker:', error);
     }

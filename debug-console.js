@@ -1,147 +1,136 @@
-// 🧪 EXPENSE TRACKER DEBUGGING SCRIPT
-// Copy and paste this into the browser console at darling-toffee-b52fd4.netlify.app
+/* 🧪 EXPENSE TRACKER DEBUG CONSOLE
+   Copy and paste this into your browser console at darling-toffee-b52fd4.netlify.app
+   This will help us identify what's broken */
 
-console.log('🧪 Starting Expense Tracker Debug Tests...');
+console.log('🔧 EXPENSE TRACKER DEBUGGING STARTED');
+console.log('=====================================');
 
-// Test 1: Check if app is initialized
-if (window.expenseTracker) {
-    console.log('✅ ExpenseTracker instance found');
-    console.log('App state:', {
-        expenses: window.expenseTracker.expenses.length,
-        income: window.expenseTracker.income.length,
-        categories: window.expenseTracker.categories.length
-    });
-} else {
-    console.error('❌ ExpenseTracker not found on window object');
-}
+// Test 1: Check if main objects exist
+console.log('📋 1. CHECKING GLOBAL OBJECTS:');
+console.log('ExpenseTracker class:', typeof ExpenseTracker);
+console.log('expenseTracker instance:', typeof window.expenseTracker);
+console.log('showTab function:', typeof showTab);
 
 // Test 2: Check DOM elements
-const elements = {
-    expenseForm: document.getElementById('expense-form'),
-    incomeForm: document.getElementById('income-form'),
-    expenseDesc: document.getElementById('expense-description'),
-    expenseAmount: document.getElementById('expense-amount'),
-    expenseCategory: document.getElementById('expense-category'),
-    incomeDesc: document.getElementById('income-description'),
-    incomeAmount: document.getElementById('income-amount'),
-    incomeType: document.getElementById('income-type')
-};
+console.log('\n📋 2. CHECKING DOM ELEMENTS:');
+const criticalElements = [
+    'expense-form', 'income-form', 'expense-category', 
+    'total-income', 'total-expenses', 'expenses-tbody'
+];
 
-console.log('🔍 DOM Elements Check:');
-Object.entries(elements).forEach(([name, element]) => {
-    if (element) {
-        console.log(`✅ ${name}: Found`);
-    } else {
-        console.error(`❌ ${name}: Missing`);
-    }
+criticalElements.forEach(id => {
+    const element = document.getElementById(id);
+    console.log(`${id}:`, element ? '✅ Found' : '❌ Missing');
 });
 
-// Test 3: Test form submission manually
-function testExpenseSubmission() {
-    console.log('🧪 Testing expense submission...');
-    
-    // Fill in test data
-    if (elements.expenseDesc) elements.expenseDesc.value = 'Test Expense';
-    if (elements.expenseAmount) elements.expenseAmount.value = '25.50';
-    if (elements.expenseCategory) elements.expenseCategory.value = 'food';
-    
-    // Set today's date
-    const today = new Date().toISOString().split('T')[0];
-    const expenseDate = document.getElementById('expense-date');
-    if (expenseDate) expenseDate.value = today;
-    
-    console.log('Form values set:', {
-        description: elements.expenseDesc?.value,
-        amount: elements.expenseAmount?.value,
-        category: elements.expenseCategory?.value,
-        date: expenseDate?.value
-    });
-    
-    // Try to call addExpense directly
-    if (window.expenseTracker && window.expenseTracker.addExpense) {
-        try {
-            window.expenseTracker.addExpense();
-            console.log('✅ addExpense() called successfully');
-        } catch (error) {
-            console.error('❌ addExpense() failed:', error);
+// Test 3: Check category dropdown specifically
+console.log('\n📋 3. CHECKING CATEGORY DROPDOWN:');
+const categorySelect = document.getElementById('expense-category');
+if (categorySelect) {
+    const options = categorySelect.querySelectorAll('option');
+    console.log(`Category options found: ${options.length}`);
+    if (options.length > 1) {
+        console.log('Categories:', Array.from(options).slice(1).map(opt => opt.textContent));
+    } else {
+        console.log('❌ Category dropdown is empty - loadCategories() not working');
+    }
+} else {
+    console.log('❌ Category select element not found');
+}
+
+// Test 4: Try to manually call methods
+console.log('\n📋 4. TESTING MANUAL METHOD CALLS:');
+if (window.expenseTracker) {
+    try {
+        console.log('Tracker categories:', window.expenseTracker.categories?.length || 'None');
+        console.log('Trying to call loadCategories...');
+        window.expenseTracker.loadCategories();
+        console.log('✅ loadCategories() called successfully');
+        
+        console.log('Trying to call updateSummary...');
+        window.expenseTracker.updateSummary();
+        console.log('✅ updateSummary() called successfully');
+    } catch (error) {
+        console.log('❌ Error calling methods:', error.message);
+    }
+} else {
+    console.log('❌ expenseTracker not available for testing');
+}
+
+// Test 5: Check for JavaScript errors
+console.log('\n📋 5. CHECKING FOR SCRIPT ERRORS:');
+window.addEventListener('error', function(e) {
+    console.log('🚨 JavaScript Error:', e.message, 'at line', e.lineno);
+});
+
+// Test 6: Try to manually fix category dropdown
+console.log('\n📋 6. MANUAL CATEGORY FIX:');
+function fixCategoryDropdown() {
+    const categorySelect = document.getElementById('expense-category');
+    if (categorySelect && categorySelect.options.length <= 1) {
+        const defaultCategories = [
+            { id: 'food', name: 'Food & Dining' },
+            { id: 'transport', name: 'Transportation' },
+            { id: 'utilities', name: 'Utilities' },
+            { id: 'healthcare', name: 'Healthcare' },
+            { id: 'entertainment', name: 'Entertainment' },
+            { id: 'shopping', name: 'Shopping' },
+            { id: 'business', name: 'Business' },
+            { id: 'other', name: 'Other' }
+        ];
+        
+        defaultCategories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+        
+        console.log('✅ Manually fixed category dropdown');
+        return true;
+    }
+    return false;
+}
+
+if (fixCategoryDropdown()) {
+    console.log('Category dropdown has been fixed manually');
+}
+
+// Test 7: Try to manually fix showTab function
+console.log('\n📋 7. MANUAL SHOWTAB FIX:');
+if (typeof showTab === 'undefined') {
+    window.showTab = function(tabName) {
+        console.log('Manual showTab called for:', tabName);
+        
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+
+        // Show selected tab
+        const tabElement = document.getElementById(`${tabName}-tab`);
+        if (tabElement) {
+            tabElement.classList.add('active');
         }
-    }
-}
-
-function testIncomeSubmission() {
-    console.log('🧪 Testing income submission...');
-    
-    // Fill in test data
-    if (elements.incomeDesc) elements.incomeDesc.value = 'Test Income';
-    if (elements.incomeAmount) elements.incomeAmount.value = '1000.00';
-    if (elements.incomeType) elements.incomeType.value = 'salary';
-    
-    // Set today's date
-    const today = new Date().toISOString().split('T')[0];
-    const incomeDate = document.getElementById('income-date');
-    if (incomeDate) incomeDate.value = today;
-    
-    console.log('Income form values set:', {
-        description: elements.incomeDesc?.value,
-        amount: elements.incomeAmount?.value,
-        type: elements.incomeType?.value,
-        date: incomeDate?.value
-    });
-    
-    // Try to call addIncome directly
-    if (window.expenseTracker && window.expenseTracker.addIncome) {
-        try {
-            window.expenseTracker.addIncome();
-            console.log('✅ addIncome() called successfully');
-        } catch (error) {
-            console.error('❌ addIncome() failed:', error);
+        
+        // Add active class to clicked button
+        const buttonElement = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+        if (buttonElement) {
+            buttonElement.classList.add('active');
         }
-    }
+        
+        console.log(`✅ Switched to ${tabName} tab`);
+    };
+    console.log('✅ showTab function created manually');
 }
 
-// Test 4: Check localStorage
-function checkLocalStorage() {
-    console.log('💾 LocalStorage Check:');
-    const expenses = localStorage.getItem('expenses');
-    const income = localStorage.getItem('income');
-    
-    console.log('Expenses in localStorage:', expenses ? JSON.parse(expenses).length + ' items' : 'Empty');
-    console.log('Income in localStorage:', income ? JSON.parse(income).length + ' items' : 'Empty');
-}
-
-// Test 5: Form event listener test
-function testFormEvents() {
-    console.log('📝 Testing form event listeners...');
-    
-    if (elements.expenseForm) {
-        // Simulate form submission
-        const event = new Event('submit', { bubbles: true, cancelable: true });
-        elements.expenseForm.dispatchEvent(event);
-        console.log('✅ Expense form submit event triggered');
-    }
-    
-    if (elements.incomeForm) {
-        // Simulate form submission  
-        const event = new Event('submit', { bubbles: true, cancelable: true });
-        elements.incomeForm.dispatchEvent(event);
-        console.log('✅ Income form submit event triggered');
-    }
-}
-
-// Run all tests
-console.log('🏃‍♂️ Running all debug tests...');
-checkLocalStorage();
-
-// Make test functions available globally
-window.testExpenseSubmission = testExpenseSubmission;
-window.testIncomeSubmission = testIncomeSubmission;
-window.testFormEvents = testFormEvents;
-window.checkLocalStorage = checkLocalStorage;
-
-console.log('📋 Available test functions:');
-console.log('  - testExpenseSubmission()');
-console.log('  - testIncomeSubmission()');
-console.log('  - testFormEvents()');
-console.log('  - checkLocalStorage()');
-
-console.log('🎯 Try running: testExpenseSubmission() then check the expenses table!');
+console.log('\n🎯 DEBUGGING COMPLETE!');
+console.log('Now try:');
+console.log('1. Click on different tabs');
+console.log('2. Try adding an expense');
+console.log('3. Check if category dropdown works');

@@ -15,6 +15,18 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-wallet"></i> Expense Tracker</h1>
+            <div class="auth-section" id="auth-section">
+                <div id="login-form" class="auth-form">
+                    <input type="email" id="auth-email" placeholder="Email" required>
+                    <input type="password" id="auth-password" placeholder="Password" required>
+                    <button onclick="signIn()">Sign In</button>
+                    <button onclick="signUp()">Sign Up</button>
+                </div>
+                <div id="user-info" class="auth-form" style="display: none;">
+                    <span id="user-email"></span>
+                    <button onclick="signOut()">Sign Out</button>
+                </div>
+            </div>
             <div class="sync-controls">
                 <button class="btn btn-sm btn-secondary" onclick="expenseTracker.forceSyncToCloud()" title="Sync to Cloud">
                     <i class="fas fa-cloud-upload-alt"></i> Sync
@@ -304,6 +316,33 @@
     <div id="notification-container"></div>
 
     <!-- Scripts -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB07Yw7wKQk4W2tqznic-IZb9NXgko0VE4",
+            authDomain: "expense-tracker-app-3268a.firebaseapp.com",
+            projectId: "expense-tracker-app-3268a",
+            storageBucket: "expense-tracker-app-3268a.firebasestorage.app",
+            messagingSenderId: "884846260963",
+            appId: "1:884846260963:web:4f3a7ab2076cbc593b8bd6"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Initialize Firestore and Auth
+        window.db = firebase.firestore();
+        window.auth = firebase.auth();
+        
+        console.log('🔥 Firebase initialized successfully');
+    </script>
+    
     <script src="script.js"></script>
     <script>
         // Register service worker for PWA functionality

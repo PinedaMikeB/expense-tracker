@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Live Site Testing - Expense Tracker</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 20px; 
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #22c55e; font-weight: 600; }
+        .error { color: #ef4444; font-weight: 600; }
+        .warning { color: #f59e0b; font-weight: 600; }
+        .info { color: #3b82f6; font-weight: 600; }
+        button { 
+            margin: 5px; 
+            padding: 10px 20px; 
+            border: none;
+            border-radius: 6px;
+            background: #3b82f6;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover { background: #2563eb; }
+        .status { 
+            font-weight: bold; 
+            margin: 10px 0; 
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8fafc;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border-left: 4px solid #e5e7eb;
+        }
+        .log-entry.success { border-left-color: #22c55e; background: #f0fdf4; }
+        .log-entry.error { border-left-color: #ef4444; background: #fef2f2; }
+        .log-entry.warning { border-left-color: #f59e0b; background: #fffbeb; }
+        .log-entry.info { border-left-color: #3b82f6; background: #eff6ff; }
+        code { 
+            background: #f1f5f9; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        .iframe-container {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Live Site Testing Dashboard</h1>
+        <p>This page will test the actual live site at <code>darling-toffee-b52fd4.netlify.app</code></p>
+        
+        <div class="test-section">
+            <h2>📊 Test Results</h2>
+            <div id="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Quick Actions</h2>
+            <button onclick="clearCacheAndTest()">🗑️ Clear Cache & Test</button>
+            <button onclick="runFullTest()">🚀 Run Full Test Suite</button>
+            <button onclick="testCategoryDropdown()">📋 Test Categories</button>
+            <button onclick="testFormSubmission()">📝 Test Forms</button>
+            <button onclick="testTabNavigation()">🗂️ Test Tabs</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🖥️ Live App Preview</h2>
+            <p>The actual expense tracker app loads below:</p>
+            <div class="iframe-container">
+                <iframe id="app-frame" src="https://darling-toffee-b52fd4.netlify.app"></iframe>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🐛 Debug Console</h2>
+            <p>Check for JavaScript errors and console output:</p>
+            <button onclick="checkConsoleErrors()">🔍 Check Console Errors</button>
+            <button onclick="inspectGlobalObjects()">🌐 Inspect Global Objects</button>
+            <div id="debug-output"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            resultDiv.appendChild(logEntry);
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+
+        function clearCacheAndTest() {
+            log('🗑️ Attempting to clear cache and reload...', 'info');
+            
+            // Force reload without cache
+            const iframe = document.getElementById('app-frame');
+            const url = iframe.src;
+            iframe.src = 'about:blank';
+            
+            setTimeout(() => {
+                iframe.src = url + '?nocache=' + Date.now();
+                log('✅ Cache cleared, app reloaded', 'success');
+                
+                // Wait a bit then test
+                setTimeout(() => {
+                    testCategoryDropdown();
+                }, 3000);
+            }, 1000);
+        }
+
+        function runFullTest() {
+            log('🚀 Starting comprehensive test suite...', 'info');
+            clearCacheAndTest();
+            
+            setTimeout(() => {
+                testCategoryDropdown();
+                setTimeout(() => testFormSubmission(), 2000);
+                setTimeout(() => testTabNavigation(), 4000);
+                setTimeout(() => checkConsoleErrors(), 6000);
+                setTimeout(() => inspectGlobalObjects(), 8000);
+            }, 3000);
+        }
+
+        function testCategoryDropdown() {
+            log('📋 Testing category dropdown...', 'info');
+            
+            try {
+                const iframe = document.getElementById('app-frame');
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                setTimeout(() => {
+                    try {
+                        const categorySelect = iframeDoc.getElementById('expense-category');
+                        
+                        if (!categorySelect) {
+                            log('❌ Category dropdown not found in DOM', 'error');
+                            return;
+                        }
+                        
+                        const options = categorySelect.querySelectorAll('option');
+                        log(`📊 Found ${options.length} options in category dropdown`, 'info');
+                        
+                        if (options.length <= 1) {
+                            log('❌ Category dropdown is empty (only placeholder)', 'error');
+                            log('💡 This means loadCategories() is not being called or failing', 'warning');
+                        } else {
+                            log(`✅ Category dropdown has ${options.length - 1} categories`, 'success');
+                            const categories = Array.from(options).slice(1).map(opt => opt.textContent);
+                            log(`📋 Categories: ${categories.join(', ')}`, 'info');
+                        }
+                        
+                        // Test if categories are being loaded
+                        const expenseTracker = iframe.contentWindow.expenseTracker;
+                        if (expenseTracker) {
+                            log('✅ expenseTracker object found globally', 'success');
+                            if (expenseTracker.categories) {
+                                log(`📋 ${expenseTracker.categories.length} categories in tracker object`, 'info');
+                            }
+                        } else {
+                            log('❌ expenseTracker object not found globally', 'error');
+                        }
+                        
+                    } catch (error) {
+                        log(`❌ Error testing category dropdown: ${error.message}`, 'error');
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                log(`❌ Cannot access iframe content: ${error.message}`, 'error');
+                log('💡 This might be due to CORS restrictions', 'warning');
+            }
+        }
+
+        function testFormSubmission() {
+            log('📝 Testing form submission...', 'info');
+            
+            try {
+                const iframe = document.getElementById('app-frame');
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                // Test expense form
+                const expenseForm = iframeDoc.getElementById('expense-form');
+                const incomeForm = iframeDoc.getElementById('income-form');
+                
+                if (!expenseForm) {
+                    log('❌ Expense form not found', 'error');
+                } else {
+                    log('✅ Expense form found', 'success');
+                }
+                
+                if (!incomeForm) {
+                    log('❌ Income form not found', 'error');
+                } else {
+                    log('✅ Income form found', 'success');
+                }
+                
+                // Test form elements
+                const requiredElements = [
+                    'expense-description', 'expense-amount', 'expense-category', 'expense-date',
+                    'income-description', 'income-amount', 'income-type', 'income-date'
+                ];
+                
+                let foundElements = 0;
+                requiredElements.forEach(id => {
+                    const element = iframeDoc.getElementById(id);
+                    if (element) {
+                        foundElements++;
+                    } else {
+                        log(`❌ Missing form element: ${id}`, 'error');
+                    }
+                });
+                
+                log(`📊 Found ${foundElements}/${requiredElements.length} required form elements`, foundElements === requiredElements.length ? 'success' : 'warning');
+                
+            } catch (error) {
+                log(`❌ Error testing forms: ${error.message}`, 'error');
+            }
+        }
+
+        function testTabNavigation() {
+            log('🗂️ Testing tab navigation...', 'info');
+            
+            try {
+                const iframe = document.getElementById('app-frame');
+                const iframeWindow = iframe.contentWindow;
+                
+                if (typeof iframeWindow.showTab === 'function') {
+                    log('✅ showTab function is available', 'success');
+                    
+                    const tabs = ['expenses', 'reimbursements', 'categories', 'analytics'];
+                    let successCount = 0;
+                    
+                    tabs.forEach((tab, index) => {
+                        setTimeout(() => {
+                            try {
+                                iframeWindow.showTab(tab);
+                                successCount++;
+                                log(`✅ Successfully switched to ${tab} tab`, 'success');
+                                
+                                if (successCount === tabs.length) {
+                                    log('🎉 All tab navigation tests passed!', 'success');
+                                }
+                            } catch (error) {
+                                log(`❌ Error switching to ${tab} tab: ${error.message}`, 'error');
+                            }
+                        }, index * 1000);
+                    });
+                    
+                } else {
+                    log('❌ showTab function not found', 'error');
+                    log('💡 This indicates the JavaScript has errors or is not loading', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Error testing tab navigation: ${error.message}`, 'error');
+            }
+        }
+
+        function checkConsoleErrors() {
+            log('🔍 Checking for console errors...', 'info');
+            
+            try {
+                const iframe = document.getElementById('app-frame');
+                const iframeWindow = iframe.contentWindow;
+                
+                // Override console methods to capture errors
+                const originalError = iframeWindow.console.error;
+                const originalLog = iframeWindow.console.log;
+                
+                let errorCount = 0;
+                let logCount = 0;
+                
+                iframeWindow.console.error = function(...args) {
+                    errorCount++;
+                    log(`🚨 Console Error: ${args.join(' ')}`, 'error');
+                    originalError.apply(this, args);
+                };
+                
+                iframeWindow.console.log = function(...args) {
+                    logCount++;
+                    if (args[0] && args[0].includes && (args[0].includes('ExpenseTracker') || args[0].includes('init'))) {
+                        log(`📝 Console Log: ${args.join(' ')}`, 'info');
+                    }
+                    originalLog.apply(this, args);
+                };
+                
+                setTimeout(() => {
+                    log(`📊 Captured ${errorCount} errors and ${logCount} logs`, 'info');
+                }, 5000);
+                
+            } catch (error) {
+                log(`❌ Error setting up console monitoring: ${error.message}`, 'error');
+            }
+        }
+
+        function inspectGlobalObjects() {
+            log('🌐 Inspecting global objects...', 'info');
+            
+            try {
+                const iframe = document.getElementById('app-frame');
+                const iframeWindow = iframe.contentWindow;
+                
+                // Check for key objects
+                const globalChecks = [
+                    'ExpenseTracker',
+                    'expenseTracker',
+                    'showTab',
+                    'document'
+                ];
+                
+                globalChecks.forEach(obj => {
+                    if (typeof iframeWindow[obj] !== 'undefined') {
+                        log(`✅ Global object '${obj}' exists (type: ${typeof iframeWindow[obj]})`, 'success');
+                    } else {
+                        log(`❌ Global object '${obj}' not found`, 'error');
+                    }
+                });
+                
+                // Check if ExpenseTracker class can be instantiated
+                if (typeof iframeWindow.ExpenseTracker === 'function') {
+                    try {
+                        // Don't actually create instance, just check if we can
+                        log('✅ ExpenseTracker class can be accessed', 'success');
+                    } catch (error) {
+                        log(`❌ ExpenseTracker class error: ${error.message}`, 'error');
+                    }
+                }
+                
+                // Check DOM elements
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const criticalElements = [
+                    'expense-form',
+                    'income-form', 
+                    'expense-category',
+                    'total-income',
+                    'total-expenses'
+                ];
+                
+                criticalElements.forEach(id => {
+                    const element = iframeDoc.getElementById(id);
+                    if (element) {
+                        log(`✅ DOM element '${id}' found`, 'success');
+                    } else {
+                        log(`❌ DOM element '${id}' missing`, 'error');
+                    }
+                });
+                
+            } catch (error) {
+                log(`❌ Error inspecting globals: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-start basic test when page loads
+        window.addEventListener('load', () => {
+            log('🚀 Testing dashboard loaded', 'info');
+            log('👆 Click "Run Full Test Suite" to comprehensively test the app', 'info');
+            
+            // Auto-test after iframe loads
+            setTimeout(() => {
+                log('🔄 Auto-starting basic tests...', 'info');
+                testCategoryDropdown();
+            }, 5000);
+        });
+        
+        // Listen for iframe load
+        document.getElementById('app-frame').addEventListener('load', () => {
+            log('📱 App iframe loaded successfully', 'success');
+        });
+    </script>
+</body>
+</html>

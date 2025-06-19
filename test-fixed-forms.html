@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fixed Forms - Expense Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .pending { color: orange; }
+        button { margin: 5px; padding: 8px 15px; }
+        .status { font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Expense Tracker - Form Testing</h1>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>1. Test Category Dropdown Population</h2>
+        <p>This should check if categories are loaded into the dropdown:</p>
+        <button onclick="testCategoryDropdown()">Test Category Dropdown</button>
+        <div id="category-test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Form Submissions</h2>
+        <p>These should submit without errors:</p>
+        <button onclick="testExpenseForm()">Test Expense Form</button>
+        <button onclick="testIncomeForm()">Test Income Form</button>
+        <button onclick="testCategoryForm()">Test Category Form</button>
+        <div id="form-test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Tab Navigation</h2>
+        <p>These should switch tabs without errors:</p>
+        <button onclick="testTabSwitching()">Test All Tabs</button>
+        <div id="tab-test-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test Summary Updates</h2>
+        <p>Check if summary cards update after adding data:</p>
+        <button onclick="testSummaryUpdate()">Test Summary Update</button>
+        <div id="summary-test-result"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'pending';
+            resultDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        function testCategoryDropdown() {
+            log('Testing category dropdown population...', 'pending');
+            
+            // Open the main app in a new window
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    const categorySelect = appWindow.document.getElementById('expense-category');
+                    if (!categorySelect) {
+                        log('❌ Category dropdown not found', 'error');
+                        return;
+                    }
+                    
+                    const options = categorySelect.querySelectorAll('option');
+                    if (options.length <= 1) {
+                        log('❌ Category dropdown is empty (only has placeholder)', 'error');
+                    } else {
+                        log(`✅ Category dropdown has ${options.length - 1} categories loaded`, 'success');
+                        log(`Categories: ${Array.from(options).slice(1).map(opt => opt.textContent).join(', ')}`, 'info');
+                    }
+                } catch (error) {
+                    log(`❌ Error testing categories: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function testExpenseForm() {
+            log('Testing expense form submission...', 'pending');
+            
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    const form = appWindow.document.getElementById('expense-form');
+                    const description = appWindow.document.getElementById('expense-description');
+                    const amount = appWindow.document.getElementById('expense-amount');
+                    const category = appWindow.document.getElementById('expense-category');
+                    const date = appWindow.document.getElementById('expense-date');
+                    
+                    if (!form || !description || !amount || !category || !date) {
+                        log('❌ Expense form elements not found', 'error');
+                        return;
+                    }
+                    
+                    // Fill form
+                    description.value = 'Test Expense';
+                    amount.value = '25.50';
+                    date.value = '2025-06-19';
+                    
+                    // Wait for categories to load, then select one
+                    setTimeout(() => {
+                        if (category.options.length > 1) {
+                            category.selectedIndex = 1; // Select first real category
+                            
+                            // Submit form
+                            form.dispatchEvent(new Event('submit'));
+                            log('✅ Expense form submitted successfully', 'success');
+                        } else {
+                            log('❌ No categories available to select', 'error');
+                        }
+                    }, 1000);
+                    
+                } catch (error) {
+                    log(`❌ Error testing expense form: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function testIncomeForm() {
+            log('Testing income form submission...', 'pending');
+            
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    const form = appWindow.document.getElementById('income-form');
+                    const description = appWindow.document.getElementById('income-description');
+                    const amount = appWindow.document.getElementById('income-amount');
+                    const type = appWindow.document.getElementById('income-type');
+                    const date = appWindow.document.getElementById('income-date');
+                    
+                    if (!form || !description || !amount || !type || !date) {
+                        log('❌ Income form elements not found', 'error');
+                        return;
+                    }
+                    
+                    // Fill form
+                    description.value = 'Test Income';
+                    amount.value = '100.00';
+                    type.value = 'salary';
+                    date.value = '2025-06-19';
+                    
+                    // Submit form
+                    form.dispatchEvent(new Event('submit'));
+                    log('✅ Income form submitted successfully', 'success');
+                    
+                } catch (error) {
+                    log(`❌ Error testing income form: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function testCategoryForm() {
+            log('Testing category form submission...', 'pending');
+            
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    // First switch to categories tab
+                    if (appWindow.showTab) {
+                        appWindow.showTab('categories');
+                    }
+                    
+                    const form = appWindow.document.getElementById('category-form');
+                    const name = appWindow.document.getElementById('category-name');
+                    const color = appWindow.document.getElementById('category-color');
+                    
+                    if (!form || !name || !color) {
+                        log('❌ Category form elements not found', 'error');
+                        return;
+                    }
+                    
+                    // Fill form
+                    name.value = 'Test Category';
+                    color.value = '#ff0000';
+                    
+                    // Submit form
+                    form.dispatchEvent(new Event('submit'));
+                    log('✅ Category form submitted successfully', 'success');
+                    
+                } catch (error) {
+                    log(`❌ Error testing category form: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function testTabSwitching() {
+            log('Testing tab navigation...', 'pending');
+            
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    const tabs = ['expenses', 'reimbursements', 'categories', 'analytics'];
+                    let successCount = 0;
+                    
+                    tabs.forEach((tab, index) => {
+                        setTimeout(() => {
+                            try {
+                                if (appWindow.showTab) {
+                                    appWindow.showTab(tab);
+                                    successCount++;
+                                    log(`✅ Successfully switched to ${tab} tab`, 'success');
+                                    
+                                    if (successCount === tabs.length) {
+                                        log('✅ All tab navigation tests passed!', 'success');
+                                    }
+                                } else {
+                                    log('❌ showTab function not available', 'error');
+                                }
+                            } catch (error) {
+                                log(`❌ Error switching to ${tab} tab: ${error.message}`, 'error');
+                            }
+                        }, index * 500);
+                    });
+                    
+                } catch (error) {
+                    log(`❌ Error testing tab switching: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function testSummaryUpdate() {
+            log('Testing summary card updates...', 'pending');
+            
+            const appWindow = window.open('/Users/mike/Desktop/expense-tracker/index.html', 'expense-app');
+            
+            setTimeout(() => {
+                try {
+                    const summaryElements = {
+                        income: appWindow.document.getElementById('total-income'),
+                        expenses: appWindow.document.getElementById('total-expenses'),
+                        reimbursements: appWindow.document.getElementById('total-reimbursements'),
+                        balance: appWindow.document.getElementById('net-balance')
+                    };
+                    
+                    let foundElements = 0;
+                    Object.entries(summaryElements).forEach(([key, element]) => {
+                        if (element) {
+                            foundElements++;
+                            log(`✅ Found ${key} summary element: ${element.textContent}`, 'success');
+                        } else {
+                            log(`❌ Missing ${key} summary element`, 'error');
+                        }
+                    });
+                    
+                    if (foundElements === 4) {
+                        log('✅ All summary elements found and displaying values', 'success');
+                    } else {
+                        log(`❌ Only ${foundElements}/4 summary elements found`, 'error');
+                    }
+                    
+                } catch (error) {
+                    log(`❌ Error testing summary: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        // Auto-start comprehensive test
+        window.addEventListener('load', () => {
+            log('🚀 Starting comprehensive form testing...', 'info');
+            log('Click individual test buttons to run specific tests', 'info');
+        });
+    </script>
+</body>
+</html>
