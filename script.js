@@ -52,6 +52,7 @@ class ExpenseTracker {
         
         const expenseForm = document.getElementById('expense-form');
         const incomeForm = document.getElementById('income-form');
+        const categoryForm = document.getElementById('category-form');
         
         if (expenseForm) {
             expenseForm.addEventListener('submit', (e) => {
@@ -73,6 +74,17 @@ class ExpenseTracker {
             console.log('Income form listener attached');
         } else {
             console.error('Income form not found!');
+        }
+
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', (e) => {
+                console.log('Category form submitted');
+                e.preventDefault();
+                this.addCategory();
+            });
+            console.log('Category form listener attached');
+        } else {
+            console.error('Category form not found!');
         }
     }
 
@@ -157,6 +169,44 @@ class ExpenseTracker {
         console.log('Income added successfully');
     }
 
+    addCategory() {
+        console.log('addCategory() called');
+        
+        const name = document.getElementById('category-name').value;
+        const color = document.getElementById('category-color').value;
+
+        console.log('Category form values:', { name, color });
+
+        if (!name || !color) {
+            console.log('Validation failed - missing fields');
+            this.showNotification('Please fill in all fields', 'error');
+            return;
+        }
+
+        // Check if category already exists
+        if (this.categories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
+            this.showNotification('Category already exists!', 'error');
+            return;
+        }
+
+        const category = {
+            id: name.toLowerCase().replace(/\s+/g, '-'),
+            name,
+            color
+        };
+
+        console.log('Adding category:', category);
+
+        this.categories.push(category);
+        this.saveCategories();
+        this.loadCategories();
+        this.renderCategories();
+        this.resetForm('category-form');
+        this.showNotification('Category added successfully!', 'success');
+        
+        console.log('Category added successfully');
+    }
+
     saveExpenses() {
         console.log('Saving expenses to localStorage');
         localStorage.setItem('expenses', JSON.stringify(this.expenses));
@@ -165,6 +215,61 @@ class ExpenseTracker {
     saveIncome() {
         console.log('Saving income to localStorage');
         localStorage.setItem('income', JSON.stringify(this.income));
+    }
+
+    saveCategories() {
+        console.log('Saving categories to localStorage');
+        localStorage.setItem('categories', JSON.stringify(this.categories));
+    }
+
+    loadCategories() {
+        console.log('Loading categories into dropdown');
+        const categorySelect = document.getElementById('expense-category');
+        if (!categorySelect) {
+            console.error('Category select element not found!');
+            return;
+        }
+
+        // Clear existing options except the first one
+        categorySelect.innerHTML = '<option value="">Select Category</option>';
+
+        // Add categories
+        this.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+
+        console.log('Categories loaded:', this.categories.length);
+    }
+
+    updateSummary() {
+        console.log('Updating summary cards');
+        
+        // Calculate totals
+        const totalIncome = this.income.reduce((sum, income) => sum + income.amount, 0);
+        const totalExpenses = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const pendingReimbursements = this.expenses
+            .filter(expense => expense.isReimbursement && !expense.isPaid)
+            .reduce((sum, expense) => sum + expense.amount, 0);
+        const netBalance = totalIncome - totalExpenses;
+
+        // Update DOM elements
+        const totalIncomeEl = document.getElementById('total-income');
+        const totalExpensesEl = document.getElementById('total-expenses');
+        const totalReimbursementsEl = document.getElementById('total-reimbursements');
+        const netBalanceEl = document.getElementById('net-balance');
+
+        if (totalIncomeEl) totalIncomeEl.textContent = `$${totalIncome.toFixed(2)}`;
+        if (totalExpensesEl) totalExpensesEl.textContent = `$${totalExpenses.toFixed(2)}`;
+        if (totalReimbursementsEl) totalReimbursementsEl.textContent = `$${pendingReimbursements.toFixed(2)}`;
+        if (netBalanceEl) {
+            netBalanceEl.textContent = `$${netBalance.toFixed(2)}`;
+            netBalanceEl.style.color = netBalance >= 0 ? '#4caf50' : '#f44336';
+        }
+
+        console.log('Summary updated:', { totalIncome, totalExpenses, pendingReimbursements, netBalance });
     }
 
     loadFromLocalStorage() {
@@ -379,6 +484,28 @@ class ExpenseTracker {
                 notification.remove();
             }
         }, 5000);
+    }
+
+    // Cloud sync placeholder methods
+    forceSyncToCloud() {
+        this.showNotification('Cloud sync feature coming soon!', 'info');
+    }
+
+    refreshFromCloud() {
+        this.showNotification('Cloud refresh feature coming soon!', 'info');
+    }
+
+    // Reimbursement batch payment methods
+    processBatchPayments() {
+        this.showNotification('Batch payment processing coming soon!', 'info');
+    }
+
+    confirmBatchPayments() {
+        this.showNotification('Batch payment confirmation coming soon!', 'info');
+    }
+
+    cancelBatchPayments() {
+        this.showNotification('Batch payment cancelled', 'info');
     }
 }
 
