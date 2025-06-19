@@ -4,6 +4,7 @@ class ExpenseTracker {
         this.expenses = [];
         this.income = [];
         this.categories = this.getDefaultCategories();
+        this.incomeCategories = this.getDefaultIncomeCategories();
         this.selectedForPayment = new Set();
         this.currentUser = null;
         this.isOnline = true;
@@ -90,6 +91,19 @@ class ExpenseTracker {
             { id: 'shopping', name: 'Shopping', color: '#ff9ff3' },
             { id: 'business', name: 'Business', color: '#54a0ff' },
             { id: 'other', name: 'Other', color: '#5f27cd' }
+        ];
+    }
+
+    getDefaultIncomeCategories() {
+        return [
+            { id: 'salary', name: 'Salary', color: '#4caf50' },
+            { id: 'freelance', name: 'Freelance', color: '#2196f3' },
+            { id: 'business', name: 'Business Income', color: '#ff9800' },
+            { id: 'investment', name: 'Investment Returns', color: '#9c27b0' },
+            { id: 'bonus', name: 'Bonus', color: '#00bcd4' },
+            { id: 'reimbursement', name: 'Reimbursement', color: '#795548' },
+            { id: 'gift', name: 'Gift/Award', color: '#e91e63' },
+            { id: 'other-income', name: 'Other Income', color: '#607d8b' }
         ];
     }
 
@@ -279,8 +293,9 @@ class ExpenseTracker {
         
         const name = document.getElementById('category-name').value;
         const color = document.getElementById('category-color').value;
+        const type = document.getElementById('category-type')?.value || 'expense';
 
-        console.log('Category form values:', { name, color });
+        console.log('Category form values:', { name, color, type });
 
         if (!name || !color) {
             console.log('Validation failed - missing fields');
@@ -288,26 +303,33 @@ class ExpenseTracker {
             return;
         }
 
+        const targetCategories = type === 'expense' ? this.categories : this.incomeCategories;
+
         // Check if category already exists
-        if (this.categories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
+        if (targetCategories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
             this.showNotification('Category already exists!', 'error');
             return;
         }
 
         const category = {
-            id: name.toLowerCase().replace(/\s+/g, '-'),
+            id: name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
             name,
             color
         };
 
         console.log('Adding category:', category);
 
-        this.categories.push(category);
+        if (type === 'expense') {
+            this.categories.push(category);
+        } else {
+            this.incomeCategories.push(category);
+        }
+
         this.saveCategoriesToCloud();
         this.loadCategories();
         this.renderCategories();
         this.resetForm('category-form');
-        this.showNotification('Category added successfully!', 'success');
+        this.showNotification(`${type} category added successfully!`, 'success');
         
         console.log('Category added successfully');
     }
@@ -325,28 +347,37 @@ class ExpenseTracker {
     saveCategories() {
         console.log('Saving categories to localStorage');
         localStorage.setItem('categories', JSON.stringify(this.categories));
+        localStorage.setItem('incomeCategories', JSON.stringify(this.incomeCategories));
     }
 
     loadCategories() {
         console.log('Loading categories into dropdown');
+        
+        // Load expense categories
         const categorySelect = document.getElementById('expense-category');
-        if (!categorySelect) {
-            console.error('Category select element not found!');
-            return;
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Select Category</option>';
+            this.categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
+            });
+            console.log('Expense categories loaded:', this.categories.length);
         }
 
-        // Clear existing options except the first one
-        categorySelect.innerHTML = '<option value="">Select Category</option>';
-
-        // Add categories
-        this.categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            categorySelect.appendChild(option);
-        });
-
-        console.log('Categories loaded:', this.categories.length);
+        // Load income categories
+        const incomeTypeSelect = document.getElementById('income-type');
+        if (incomeTypeSelect) {
+            incomeTypeSelect.innerHTML = '<option value="">Select Type</option>';
+            this.incomeCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                incomeTypeSelect.appendChild(option);
+            });
+            console.log('Income categories loaded:', this.incomeCategories.length);
+        }
     }
 
     updateSummary() {
@@ -388,6 +419,7 @@ class ExpenseTracker {
         this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
         this.income = JSON.parse(localStorage.getItem('income')) || [];
         this.categories = JSON.parse(localStorage.getItem('categories')) || this.getDefaultCategories();
+        this.incomeCategories = JSON.parse(localStorage.getItem('incomeCategories')) || this.getDefaultIncomeCategories();
     }
 
     async loadFromCloud() {
@@ -431,9 +463,12 @@ class ExpenseTracker {
                 .get();
             
             if (categoriesDoc.exists) {
-                this.categories = categoriesDoc.data().categories || this.getDefaultCategories();
+                const data = categoriesDoc.data();
+                this.categories = data.categories || this.getDefaultCategories();
+                this.incomeCategories = data.incomeCategories || this.getDefaultIncomeCategories();
             } else {
                 this.categories = this.getDefaultCategories();
+                this.incomeCategories = this.getDefaultIncomeCategories();
                 await this.saveCategoriesToCloud();
             }
             
@@ -528,7 +563,10 @@ class ExpenseTracker {
                 .doc(this.currentUser.uid)
                 .collection('settings')
                 .doc('categories')
-                .set({ categories: this.categories });
+                .set({ 
+                    categories: this.categories,
+                    incomeCategories: this.incomeCategories 
+                });
             
             console.log('✅ Categories saved to cloud');
             
@@ -671,6 +709,11 @@ class ExpenseTracker {
         
         grid.innerHTML = '';
 
+        // Expense Categories Section
+        const expenseCategoriesSection = document.createElement('div');
+        expenseCategoriesSection.innerHTML = '<h3>💸 Expense Categories</h3>';
+        expenseCategoriesSection.className = 'category-section';
+        
         this.categories.forEach(category => {
             const categoryDiv = document.createElement('div');
             categoryDiv.className = 'category-item';
@@ -679,9 +722,75 @@ class ExpenseTracker {
                     <div class="category-color" style="background-color: ${category.color}"></div>
                     <span class="category-name">${category.name}</span>
                 </div>
+                <div class="category-actions">
+                    <button class="btn btn-sm btn-primary" onclick="expenseTracker.editCategory('${category.id}', 'expense')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="expenseTracker.deleteCategory('${category.id}', 'expense')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             `;
-            grid.appendChild(categoryDiv);
+            expenseCategoriesSection.appendChild(categoryDiv);
         });
+        
+        // Income Categories Section
+        const incomeCategoriesSection = document.createElement('div');
+        incomeCategoriesSection.innerHTML = '<h3>💰 Income Categories</h3>';
+        incomeCategoriesSection.className = 'category-section';
+        
+        this.incomeCategories.forEach(category => {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'category-item';
+            categoryDiv.innerHTML = `
+                <div class="category-info">
+                    <div class="category-color" style="background-color: ${category.color}"></div>
+                    <span class="category-name">${category.name}</span>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-sm btn-primary" onclick="expenseTracker.editCategory('${category.id}', 'income')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="expenseTracker.deleteCategory('${category.id}', 'income')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            incomeCategoriesSection.appendChild(categoryDiv);
+        });
+
+        grid.appendChild(expenseCategoriesSection);
+        grid.appendChild(incomeCategoriesSection);
+    }
+
+    editCategory(categoryId, type) {
+        const categories = type === 'expense' ? this.categories : this.incomeCategories;
+        const category = categories.find(cat => cat.id === categoryId);
+        if (!category) return;
+
+        const newName = prompt(`Edit ${type} category name:`, category.name);
+        if (newName && newName.trim()) {
+            category.name = newName.trim();
+            this.saveCategoriesToCloud();
+            this.renderCategories();
+            this.loadCategories();
+            this.showNotification(`${type} category updated successfully!`, 'success');
+        }
+    }
+
+    deleteCategory(categoryId, type) {
+        if (!confirm(`Are you sure you want to delete this ${type} category?`)) return;
+
+        if (type === 'expense') {
+            this.categories = this.categories.filter(cat => cat.id !== categoryId);
+        } else {
+            this.incomeCategories = this.incomeCategories.filter(cat => cat.id !== categoryId);
+        }
+
+        this.saveCategoriesToCloud();
+        this.renderCategories();
+        this.loadCategories();
+        this.showNotification(`${type} category deleted successfully!`, 'success');
     }
 
     renderAnalytics() {

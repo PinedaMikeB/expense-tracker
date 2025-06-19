@@ -28,12 +28,6 @@
                 </div>
             </div>
             <div class="sync-controls">
-                <button class="btn btn-sm btn-secondary" onclick="expenseTracker.forceSyncToCloud()" title="Sync to Cloud">
-                    <i class="fas fa-cloud-upload-alt"></i> Sync
-                </button>
-                <button class="btn btn-sm btn-secondary" onclick="expenseTracker.refreshFromCloud()" title="Refresh from Cloud">
-                    <i class="fas fa-cloud-download-alt"></i> Refresh
-                </button>
                 <span id="sync-status" class="sync-status">Local Storage</span>
             </div>
             <div class="summary-cards">
@@ -233,6 +227,13 @@
                 <h2>Add New Category</h2>
                 <form id="category-form">
                     <div class="form-row">
+                        <div class="form-group">
+                            <label for="category-type">Category Type</label>
+                            <select id="category-type" required>
+                                <option value="expense">Expense Category</option>
+                                <option value="income">Income Category</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="category-name">Category Name</label>
                             <input type="text" id="category-name" required>

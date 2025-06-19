@@ -1065,6 +1065,58 @@ tbody tr:last-child td {
     line-height: 1.4;
 }
 
+/* Category Management Styles */
+.category-section {
+    margin: 20px 0;
+}
+
+.category-section h3 {
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 8px;
+}
+
+.category-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin: 8px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.category-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.category-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.category-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.category-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.category-actions .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
 /* Authentication Styles */
 .auth-section {
     margin: 0 20px;
