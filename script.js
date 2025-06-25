@@ -67,6 +67,7 @@ class ExpenseTracker {
     async init() {
         console.log('ExpenseTracker init() called');
         this.setupEventListeners();
+        this.setupModalCloseHandler();
         this.loadCategories();
         this.loadFromLocalStorage();
         
@@ -694,9 +695,10 @@ class ExpenseTracker {
                     ${expense.paymentDate ? this.formatDate(expense.paymentDate) : '-'}
                 </td>
                 <td>
-                    <span class="status-badge status-${expense.isPaid ? 'paid' : 'pending'}">
-                        ${expense.isPaid ? 'Paid' : 'Pending'}
-                    </span>
+                    ${expense.isPaid ? 
+                        `<span class="status-badge status-paid">Paid</span>` :
+                        `<span class="status-badge status-pending" onclick="expenseTracker.openPaymentModal(${expense.id})">Pending</span>`
+                    }
                 </td>
             `;
             tbody.appendChild(row);
@@ -1109,6 +1111,99 @@ class ExpenseTracker {
 
     cancelBatchPayments() {
         this.showNotification('Batch payment cancelled', 'info');
+    }
+
+    // Payment Modal Functions
+    openPaymentModal(expenseId) {
+        const expense = this.expenses.find(exp => exp.id === expenseId);
+        if (!expense || expense.isPaid) {
+            this.showNotification('Expense not found or already paid', 'error');
+            return;
+        }
+
+        // Populate modal with expense data
+        document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('payment-amount').value = expense.amount;
+        document.getElementById('payment-description').value = expense.description;
+        
+        // Store the expense ID for processing
+        document.getElementById('payment-form').dataset.expenseId = expenseId;
+        
+        // Show modal
+        document.getElementById('payment-modal').style.display = 'block';
+        
+        // Add form submit handler
+        const form = document.getElementById('payment-form');
+        form.onsubmit = (e) => this.processPayment(e);
+    }
+
+    closePaymentModal() {
+        document.getElementById('payment-modal').style.display = 'none';
+        document.getElementById('payment-form').reset();
+        delete document.getElementById('payment-form').dataset.expenseId;
+    }
+
+    processPayment(event) {
+        event.preventDefault();
+        
+        const form = document.getElementById('payment-form');
+        const expenseId = parseInt(form.dataset.expenseId);
+        const paymentDate = document.getElementById('payment-date').value;
+        const paymentAmount = parseFloat(document.getElementById('payment-amount').value);
+        
+        if (!expenseId || !paymentDate || !paymentAmount) {
+            this.showNotification('Please fill in all payment details', 'error');
+            return;
+        }
+
+        // Find the expense
+        const expenseIndex = this.expenses.findIndex(exp => exp.id === expenseId);
+        if (expenseIndex === -1) {
+            this.showNotification('Expense not found', 'error');
+            return;
+        }
+
+        const expense = this.expenses[expenseIndex];
+
+        // Update the expense as paid
+        this.expenses[expenseIndex] = {
+            ...expense,
+            isPaid: true,
+            paymentDate: paymentDate,
+            paidAmount: paymentAmount
+        };
+
+        // Add the payment as income with "Reimbursement" category
+        const reimbursementIncome = {
+            id: Date.now() + Math.random(), // Unique ID
+            description: `Reimbursement: ${expense.description}`,
+            amount: paymentAmount,
+            category: 'reimbursement',
+            date: paymentDate,
+            timestamp: new Date().toISOString()
+        };
+
+        this.income.push(reimbursementIncome);
+
+        // Save to cloud and update UI
+        this.saveExpensesToCloud();
+        this.saveIncomeToCloud();
+        this.updateUI();
+        
+        this.showNotification('Payment processed successfully! Added to income as reimbursement.', 'success');
+        this.closePaymentModal();
+    }
+
+    // Close modal when clicking outside
+    setupModalCloseHandler() {
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+            modal.onclick = (event) => {
+                if (event.target === modal) {
+                    this.closePaymentModal();
+                }
+            };
+        }
     }
 }
 

@@ -322,6 +322,40 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
     
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Process Reimbursement Payment</h2>
+                <span class="close-modal" onclick="expenseTracker.closePaymentModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="payment-form">
+                    <div class="form-group">
+                        <label for="payment-date">Payment Date</label>
+                        <input type="date" id="payment-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-amount">Payment Amount</label>
+                        <input type="number" id="payment-amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-description">Description</label>
+                        <input type="text" id="payment-description" readonly>
+                    </div>
+                    <div class="form-row">
+                        <button type="button" class="btn btn-secondary" onclick="expenseTracker.closePaymentModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check"></i> Pay Now
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Configuration -->
     <script>
         // Your web app's Firebase configuration
