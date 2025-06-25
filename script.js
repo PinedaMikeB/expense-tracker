@@ -896,11 +896,24 @@ class ExpenseTracker {
     }
 
     renderAnalytics() {
-        // Enhanced analytics calculations (excluding petty cash allocations)
+        console.log('🔍 renderAnalytics called');
+        console.log('🔍 Current expenses:', this.expenses);
+        console.log('🔍 Current income:', this.income);
+        
+        // If no data exists, show sample data option
+        if (this.expenses.length === 0) {
+            console.log('🔍 No expenses found, showing empty analytics');
+            this.renderEmptyAnalytics();
+            return;
+        }
+        
+        // Enhanced analytics calculations (excluding petty cash allocations AND reimbursements)
         const actualExpenses = this.expenses.filter(expense => {
             const category = this.categories.find(cat => cat.id === expense.category);
-            return category?.name !== 'Petty Cash';
+            return category?.name !== 'Petty Cash' && !expense.isReimbursement;
         });
+        console.log('🔍 actualExpenses for analytics (excluding reimbursements):', actualExpenses.length, actualExpenses);
+        
         const totalExpenses = actualExpenses.reduce((sum, expense) => sum + expense.amount, 0);
         const totalIncome = this.income.reduce((sum, income) => sum + income.amount, 0);
         const avgDaily = totalExpenses / 30;
@@ -937,6 +950,465 @@ class ExpenseTracker {
 
         // Generate smart financial tips
         this.generateFinancialTips(totalIncome, totalExpenses, categoryTotals, monthlyNet);
+        
+        // Generate category breakdown chart
+        this.renderCategoryBreakdown(categoryTotals);
+        
+        // Generate monthly trend chart
+        this.renderMonthlyTrend(actualExpenses);
+    }
+
+    renderEmptyAnalytics() {
+        console.log('🔍 renderEmptyAnalytics called');
+        // Show sample data option when no data exists
+        const categoryContainer = document.getElementById('categoryChart');
+        const trendContainer = document.getElementById('trendChart');
+        
+        console.log('🔍 categoryChart element:', categoryContainer);
+        console.log('🔍 trendChart element:', trendContainer);
+        
+        if (categoryContainer) {
+            categoryContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #666; margin-bottom: 20px; font-size: 16px;">📊 No expenses recorded yet</p>
+                    <button onclick="expenseTracker.addSampleData()" class="btn btn-primary" style="
+                        background: linear-gradient(145deg, #51cf66, #40c057);
+                        color: white;
+                        padding: 15px 30px;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        box-shadow: 0 4px 15px rgba(81, 207, 102, 0.3);
+                    ">
+                        🚀 Add Sample Data to Test Charts
+                    </button>
+                </div>
+            `;
+            console.log('🔍 Category chart HTML set');
+        } else {
+            console.error('🔍 categoryChart element not found!');
+        }
+        
+        if (trendContainer) {
+            trendContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <p style="color: #666; font-size: 16px;">📈 Add some expenses to see monthly trends</p>
+                </div>
+            `;
+            console.log('🔍 Trend chart HTML set');
+        } else {
+            console.error('🔍 trendChart element not found!');
+        }
+    }
+
+    addSampleData() {
+        // Add sample expenses for testing
+        const sampleExpenses = [
+            {
+                id: Date.now() + 1,
+                description: 'Groceries at Supermarket',
+                amount: 2500,
+                category: 'food',
+                date: '2024-06-20',
+                isReimbursement: false,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 2,
+                description: 'Grab Transportation',
+                amount: 350,
+                category: 'transport',
+                date: '2024-06-21',
+                isReimbursement: false,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 3,
+                description: 'Business Lunch Meeting',
+                amount: 1200,
+                category: 'business',
+                date: '2024-06-22',
+                isReimbursement: true,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 4,
+                description: 'Movie Tickets',
+                amount: 800,
+                category: 'entertainment',
+                date: '2024-06-23',
+                isReimbursement: false,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 5,
+                description: 'Electric Bill',
+                amount: 3200,
+                category: 'utilities',
+                date: '2024-06-18',
+                isReimbursement: false,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 6,
+                description: 'Shopping - Clothes',
+                amount: 4500,
+                category: 'shopping',
+                date: '2024-06-15',
+                isReimbursement: false,
+                isPaid: false,
+                paymentDate: null,
+                timestamp: new Date().toISOString()
+            }
+        ];
+
+        // Add sample income
+        const sampleIncome = [
+            {
+                id: Date.now() + 10,
+                description: 'Monthly Salary',
+                amount: 50000,
+                type: 'salary',
+                date: '2024-06-01',
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 11,
+                description: 'Freelance Project',
+                amount: 15000,
+                type: 'freelance',
+                date: '2024-06-10',
+                timestamp: new Date().toISOString()
+            }
+        ];
+
+        // Add to arrays
+        this.expenses.push(...sampleExpenses);
+        this.income.push(...sampleIncome);
+
+        // Save and update UI
+        this.saveExpensesToCloud();
+        this.saveIncomeToCloud();
+        this.updateUI();
+        
+        this.showNotification('Sample data added! Check out your analytics now.', 'success');
+    }
+
+    renderCategoryBreakdown(categoryTotals) {
+        console.log('🔍 renderCategoryBreakdown called with:', categoryTotals);
+        const container = document.getElementById('categoryChart');
+        console.log('🔍 categoryChart container found:', !!container);
+        
+        if (!container) return;
+
+        // Clear existing content
+        container.innerHTML = '';
+        
+        // Create pie chart
+        const total = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+        console.log('🔍 Total amount for charts:', total);
+        
+        if (total === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No actual expenses recorded yet</p>';
+            return;
+        }
+
+        // Sort categories by amount (descending)
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a);
+
+        // Create pie chart using CSS conic-gradient
+        let currentPercent = 0;
+        let gradientStops = [];
+        let legendHTML = '';
+
+        sortedCategories.forEach(([categoryId, amount], index) => {
+            const category = this.categories.find(cat => cat.id === categoryId);
+            const percentage = (amount / total) * 100;
+            const color = category?.color || `hsl(${index * 45}, 70%, 60%)`;
+            
+            // Add to gradient stops
+            if (gradientStops.length > 0) {
+                gradientStops.push(`${color} ${currentPercent}%`);
+            } else {
+                gradientStops.push(`${color} 0%`);
+            }
+            currentPercent += percentage;
+            gradientStops.push(`${color} ${currentPercent}%`);
+            
+            // Add to legend with hover effects
+            legendHTML += `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 8px; border-radius: 6px; transition: all 0.3s ease; cursor: pointer;" 
+                     onmouseover="this.style.backgroundColor='#f8f9fa'; this.style.transform='translateX(5px)'" 
+                     onmouseout="this.style.backgroundColor='transparent'; this.style.transform='translateX(0)'">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 16px; height: 16px; background: ${color}; border-radius: 50%; margin-right: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                        <span style="font-weight: 500; color: #333;">${category?.name || 'Unknown'}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: #333;">${this.formatCurrency(amount)}</div>
+                        <div style="font-size: 12px; color: #666;">${percentage.toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Create responsive layout
+        const pieChartHTML = `
+            <div style="display: flex; flex-direction: column; gap: 25px; padding: 20px;">
+                <!-- Mobile-first: stack on small screens -->
+                <div style="display: flex; flex-wrap: wrap; gap: 25px; align-items: flex-start;">
+                    <!-- Pie Chart -->
+                    <div style="flex: 0 0 auto; margin: 0 auto;">
+                        <div style="
+                            width: 220px; 
+                            height: 220px; 
+                            border-radius: 50%; 
+                            background: conic-gradient(${gradientStops.join(', ')});
+                            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+                            border: 4px solid white;
+                            position: relative;
+                            transition: transform 0.3s ease;
+                        " 
+                        onmouseover="this.style.transform='scale(1.05)'" 
+                        onmouseout="this.style.transform='scale(1)'">
+                            <!-- Center label -->
+                            <div style="
+                                position: absolute;
+                                top: 50%;
+                                left: 50%;
+                                transform: translate(-50%, -50%);
+                                background: white;
+                                border-radius: 50%;
+                                width: 80px;
+                                height: 80px;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                            ">
+                                <div style="font-size: 12px; color: #666; font-weight: 500;">TOTAL</div>
+                                <div style="font-size: 14px; color: #333; font-weight: 600;">${this.formatCurrency(total)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Legend -->
+                    <div style="flex: 1; min-width: 280px;">
+                        <h4 style="margin: 0 0 20px 0; color: #333; font-size: 18px; font-weight: 600;">💸 Spending Breakdown</h4>
+                        <div style="max-height: 300px; overflow-y: auto; padding-right: 10px;">
+                            ${legendHTML}
+                        </div>
+                        
+                        <!-- Summary Stats -->
+                        <div style="border-top: 2px solid #eee; padding-top: 15px; margin-top: 20px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+                                <div>
+                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Categories</div>
+                                    <div style="font-size: 20px; font-weight: 600; color: #667eea;">${sortedCategories.length}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Avg per Category</div>
+                                    <div style="font-size: 20px; font-weight: 600; color: #667eea;">${this.formatCurrency(total / sortedCategories.length)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top 3 Categories Quick Stats -->
+                <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 12px; padding: 20px;">
+                    <h5 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">🏆 Top 3 Categories</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        ${sortedCategories.slice(0, 3).map(([categoryId, amount], index) => {
+                            const category = this.categories.find(cat => cat.id === categoryId);
+                            const percentage = (amount / total) * 100;
+                            const medal = ['🥇', '🥈', '🥉'][index];
+                            return `
+                                <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                    <div style="font-size: 24px; margin-bottom: 5px;">${medal}</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 5px;">${category?.name || 'Unknown'}</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: ${category?.color || '#667eea'};">${this.formatCurrency(amount)}</div>
+                                    <div style="font-size: 12px; color: #666;">${percentage.toFixed(1)}%</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = pieChartHTML;
+    }
+
+    renderMonthlyTrend(expenses) {
+        console.log('🔍 renderMonthlyTrend called with expenses:', expenses.length);
+        const container = document.getElementById('trendChart');
+        console.log('🔍 trendChart container found:', !!container);
+
+        if (!container) return;
+
+        // Clear existing content
+        container.innerHTML = '';
+        
+        if (expenses.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No expenses recorded yet</p>';
+            return;
+        }
+
+        // Group expenses by month
+        const monthlyData = {};
+        expenses.forEach(expense => {
+            const date = new Date(expense.date);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = 0;
+            }
+            monthlyData[monthKey] += expense.amount;
+        });
+
+        // Get last 6 months or all available months
+        const allMonths = Object.keys(monthlyData).sort();
+        const months = allMonths.slice(-6);
+        
+        if (months.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No monthly data available</p>';
+            return;
+        }
+
+        const maxAmount = Math.max(...months.map(month => monthlyData[month]));
+        const minHeight = 20; // Minimum bar height for visibility
+        
+        let chartHTML = '<div style="padding: 20px;">';
+        
+        // Chart title and total
+        const totalMonthlyExpenses = months.reduce((sum, month) => sum + monthlyData[month], 0);
+        const avgMonthly = totalMonthlyExpenses / months.length;
+        
+        chartHTML += `
+            <div style="margin-bottom: 20px; text-align: center;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 5px;">
+                    Average Monthly: ${this.formatCurrency(avgMonthly)}
+                </div>
+            </div>
+        `;
+        
+        // Chart bars
+        chartHTML += '<div style="display: flex; align-items: end; justify-content: space-between; min-height: 180px; margin-bottom: 15px; padding: 0 10px;">';
+        
+        months.forEach((month, index) => {
+            const amount = monthlyData[month] || 0;
+            const barHeight = Math.max(minHeight, (amount / maxAmount) * 150);
+            const date = new Date(month + '-01');
+            const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            
+            // Color gradient based on amount
+            const intensity = amount / maxAmount;
+            const color = `hsl(${220 + intensity * 40}, 70%, ${60 - intensity * 10}%)`;
+            
+            chartHTML += `
+                <div style="display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 2px;">
+                    <div style="
+                        width: 100%; 
+                        max-width: 60px;
+                        background: linear-gradient(to top, ${color}, ${color}CC);
+                        height: ${barHeight}px; 
+                        border-radius: 6px 6px 0 0; 
+                        margin-bottom: 8px; 
+                        position: relative;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " 
+                    onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'"
+                    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
+                    title="${monthName}: ${this.formatCurrency(amount)}">
+                        <div style="
+                            position: absolute; 
+                            bottom: 100%; 
+                            left: 50%; 
+                            transform: translateX(-50%); 
+                            font-size: 11px; 
+                            color: #333; 
+                            white-space: nowrap; 
+                            margin-bottom: 8px;
+                            background: rgba(255,255,255,0.9);
+                            padding: 4px 6px;
+                            border-radius: 4px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            opacity: 0;
+                            transition: opacity 0.3s ease;
+                        " class="amount-tooltip">
+                            ${this.formatCurrency(amount)}
+                        </div>
+                    </div>
+                    <span style="font-size: 12px; color: #666; font-weight: 500; text-align: center;">${monthName}</span>
+                </div>
+            `;
+        });
+        
+        chartHTML += '</div>';
+        
+        // Summary stats
+        const currentMonth = months[months.length - 1];
+        const previousMonth = months[months.length - 2];
+        let trendText = '';
+        let trendColor = '#666';
+        
+        if (previousMonth && monthlyData[currentMonth] && monthlyData[previousMonth]) {
+            const trend = monthlyData[currentMonth] - monthlyData[previousMonth];
+            const trendPercent = (trend / monthlyData[previousMonth]) * 100;
+            
+            if (trend > 0) {
+                trendText = `📈 ${Math.abs(trendPercent).toFixed(1)}% increase from last month`;
+                trendColor = '#ff6b6b';
+            } else if (trend < 0) {
+                trendText = `📉 ${Math.abs(trendPercent).toFixed(1)}% decrease from last month`;
+                trendColor = '#51cf66';
+            } else {
+                trendText = '➡️ No change from last month';
+                trendColor = '#666';
+            }
+        }
+        
+        if (trendText) {
+            chartHTML += `
+                <div style="text-align: center; padding-top: 15px; border-top: 1px solid #eee;">
+                    <span style="color: ${trendColor}; font-size: 14px; font-weight: 500;">
+                        ${trendText}
+                    </span>
+                </div>
+            `;
+        }
+        
+        chartHTML += '</div>';
+        
+        // Add hover effects with CSS
+        chartHTML += `
+            <style>
+                .amount-tooltip {
+                    opacity: 0 !important;
+                }
+                [title]:hover .amount-tooltip {
+                    opacity: 1 !important;
+                }
+            </style>
+        `;
+        
+        container.innerHTML = chartHTML;
     }
 
     generateFinancialTips(income, expenses, categoryTotals, netBalance) {

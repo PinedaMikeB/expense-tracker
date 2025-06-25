@@ -631,6 +631,7 @@ tbody tr:last-child td {
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden; /* Prevent content overflow */
 }
 
 .chart-container h3 {
@@ -642,6 +643,37 @@ tbody tr:last-child td {
 .chart-container canvas {
     max-width: 100%;
     height: auto !important;
+}
+
+/* Enhanced chart styles */
+#categoryChart, #trendChart {
+    min-height: 300px;
+}
+
+/* Sample data button styling */
+.sample-data-btn {
+    background: linear-gradient(145deg, #51cf66, #40c057);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(81, 207, 102, 0.3);
+}
+
+.sample-data-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(81, 207, 102, 0.4);
+}
+
+/* Chart hover effects */
+.chart-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
 }
 
 /* Tips Section */
@@ -744,6 +776,7 @@ tbody tr:last-child td {
     
     .chart-container {
         padding: 20px;
+        min-height: auto;
     }
     
     .analytics-card {
@@ -762,6 +795,59 @@ tbody tr:last-child td {
     
     .tips-grid {
         grid-template-columns: 1fr;
+    }
+    
+    /* Mobile-specific chart adjustments */
+    #categoryChart .pie-chart-container {
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    
+    #categoryChart .pie-chart {
+        width: 180px !important;
+        height: 180px !important;
+        margin-bottom: 20px;
+    }
+    
+    #trendChart .chart-bars {
+        padding: 0 5px !important;
+    }
+    
+    #trendChart .bar-item {
+        margin: 0 1px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        padding: 15px;
+        margin: 0 -10px;
+        border-radius: 12px;
+    }
+    
+    .charts-section {
+        gap: 20px;
+    }
+    
+    .analytics-grid {
+        gap: 15px;
+    }
+    
+    .analytics-card {
+        padding: 15px;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .analytics-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.8em;
+        margin-bottom: 10px;
+    }
+    
+    .analytics-info h3 {
+        font-size: 1.3em;
     }
 }
 
