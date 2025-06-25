@@ -1129,7 +1129,33 @@ class ExpenseTracker {
         const sortedCategories = Object.entries(categoryTotals)
             .sort(([,a], [,b]) => b - a);
 
-        // Create pie chart using CSS conic-gradient
+        // Detect if browser supports conic-gradient
+        const supportsConicGradient = this.supportsConicGradient();
+        console.log('🔍 Conic gradient supported:', supportsConicGradient);
+
+        if (supportsConicGradient) {
+            // Desktop/modern browser version with conic-gradient
+            this.renderDesktopPieChart(sortedCategories, total, container);
+        } else {
+            // Mobile/iOS fallback version with HTML segments
+            this.renderMobilePieChart(sortedCategories, total, container);
+        }
+    }
+
+    supportsConicGradient() {
+        // Check if browser supports conic-gradient
+        if (typeof CSS !== 'undefined' && CSS.supports) {
+            return CSS.supports('background', 'conic-gradient(red, blue)');
+        }
+        
+        // Fallback detection for older browsers
+        const testDiv = document.createElement('div');
+        testDiv.style.background = 'conic-gradient(red, blue)';
+        return testDiv.style.background.includes('conic-gradient');
+    }
+
+    renderDesktopPieChart(sortedCategories, total, container) {
+        // Create pie chart using CSS conic-gradient (original desktop version)
         let currentPercent = 0;
         let gradientStops = [];
         let legendHTML = '';
@@ -1165,12 +1191,11 @@ class ExpenseTracker {
             `;
         });
 
-        // Create responsive layout
+        // Create responsive layout with conic-gradient
         const pieChartHTML = `
             <div style="display: flex; flex-direction: column; gap: 25px; padding: 20px;">
-                <!-- Mobile-first: stack on small screens -->
                 <div style="display: flex; flex-wrap: wrap; gap: 25px; align-items: flex-start;">
-                    <!-- Pie Chart -->
+                    <!-- Desktop Pie Chart -->
                     <div style="flex: 0 0 auto; margin: 0 auto;">
                         <div style="
                             width: 220px; 
@@ -1212,46 +1237,148 @@ class ExpenseTracker {
                         <div style="max-height: 300px; overflow-y: auto; padding-right: 10px;">
                             ${legendHTML}
                         </div>
-                        
-                        <!-- Summary Stats -->
-                        <div style="border-top: 2px solid #eee; padding-top: 15px; margin-top: 20px;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
-                                <div>
-                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Categories</div>
-                                    <div style="font-size: 20px; font-weight: 600; color: #667eea;">${sortedCategories.length}</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Avg per Category</div>
-                                    <div style="font-size: 20px; font-weight: 600; color: #667eea;">${this.formatCurrency(total / sortedCategories.length)}</div>
-                                </div>
-                            </div>
-                        </div>
+                        ${this.generateCategoryStats(sortedCategories, total)}
                     </div>
                 </div>
-                
-                <!-- Top 3 Categories Quick Stats -->
-                <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 12px; padding: 20px;">
-                    <h5 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">🏆 Top 3 Categories</h5>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-                        ${sortedCategories.slice(0, 3).map(([categoryId, amount], index) => {
+                ${this.generateTopCategories(sortedCategories, total)}
+            </div>
+        `;
+        
+        container.innerHTML = pieChartHTML;
+    }
+
+    renderMobilePieChart(sortedCategories, total, container) {
+        // Mobile-friendly pie chart using HTML segments
+        console.log('🔍 Rendering mobile pie chart');
+        
+        let legendHTML = '';
+        let segmentsHTML = '';
+        let currentAngle = 0;
+
+        sortedCategories.forEach(([categoryId, amount], index) => {
+            const category = this.categories.find(cat => cat.id === categoryId);
+            const percentage = (amount / total) * 100;
+            const color = category?.color || `hsl(${index * 45}, 70%, 60%)`;
+            const angle = (percentage / 100) * 360;
+            
+            // Create segments using clip-path (better mobile support)
+            segmentsHTML += `
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: ${color};
+                    clip-path: polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos((currentAngle - 90) * Math.PI / 180)}% ${50 + 50 * Math.sin((currentAngle - 90) * Math.PI / 180)}%, ${50 + 50 * Math.cos((currentAngle + angle - 90) * Math.PI / 180)}% ${50 + 50 * Math.sin((currentAngle + angle - 90) * Math.PI / 180)}%);
+                "></div>
+            `;
+            
+            currentAngle += angle;
+            
+            // Create legend
+            legendHTML += `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.8);">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 16px; height: 16px; background: ${color}; border-radius: 50%; margin-right: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                        <span style="font-weight: 500; color: #333; font-size: 14px;">${category?.name || 'Unknown'}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600; color: #333; font-size: 14px;">${this.formatCurrency(amount)}</div>
+                        <div style="font-size: 12px; color: #666;">${percentage.toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Alternative: Use simple bar chart for better mobile compatibility
+        const mobileChartHTML = `
+            <div style="padding: 20px;">
+                <!-- Mobile Bar Chart -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="margin: 0 0 20px 0; color: #333; font-size: 18px; font-weight: 600; text-align: center;">💸 Spending Breakdown</h4>
+                    
+                    <!-- Total Display -->
+                    <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; color: white;">
+                        <div style="font-size: 14px; opacity: 0.9;">TOTAL EXPENSES</div>
+                        <div style="font-size: 24px; font-weight: 600; margin-top: 5px;">${this.formatCurrency(total)}</div>
+                    </div>
+                    
+                    <!-- Category Bars -->
+                    <div style="space-y: 15px;">
+                        ${sortedCategories.map(([categoryId, amount], index) => {
                             const category = this.categories.find(cat => cat.id === categoryId);
                             const percentage = (amount / total) * 100;
-                            const medal = ['🥇', '🥈', '🥉'][index];
+                            const color = category?.color || `hsl(${index * 45}, 70%, 60%)`;
+                            
                             return `
-                                <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    <div style="font-size: 24px; margin-bottom: 5px;">${medal}</div>
-                                    <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 5px;">${category?.name || 'Unknown'}</div>
-                                    <div style="font-size: 16px; font-weight: 700; color: ${category?.color || '#667eea'};">${this.formatCurrency(amount)}</div>
-                                    <div style="font-size: 12px; color: #666;">${percentage.toFixed(1)}%</div>
+                                <div style="margin-bottom: 15px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div style="display: flex; align-items: center;">
+                                            <div style="width: 12px; height: 12px; background: ${color}; border-radius: 50%; margin-right: 10px;"></div>
+                                            <span style="font-weight: 500; color: #333; font-size: 14px;">${category?.name || 'Unknown'}</span>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-weight: 600; color: #333; font-size: 14px;">${this.formatCurrency(amount)}</div>
+                                            <div style="font-size: 12px; color: #666;">${percentage.toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+                                    <div style="background: #f0f0f0; border-radius: 10px; height: 8px; overflow: hidden;">
+                                        <div style="background: ${color}; height: 100%; width: ${percentage}%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                                    </div>
                                 </div>
                             `;
                         }).join('')}
                     </div>
                 </div>
+                
+                ${this.generateTopCategories(sortedCategories, total)}
             </div>
         `;
         
-        container.innerHTML = pieChartHTML;
+        container.innerHTML = mobileChartHTML;
+    }
+
+    generateCategoryStats(sortedCategories, total) {
+        return `
+            <!-- Summary Stats -->
+            <div style="border-top: 2px solid #eee; padding-top: 15px; margin-top: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+                    <div>
+                        <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Categories</div>
+                        <div style="font-size: 20px; font-weight: 600; color: #667eea;">${sortedCategories.length}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Avg per Category</div>
+                        <div style="font-size: 20px; font-weight: 600; color: #667eea;">${this.formatCurrency(total / sortedCategories.length)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    generateTopCategories(sortedCategories, total) {
+        return `
+            <!-- Top 3 Categories Quick Stats -->
+            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 12px; padding: 20px; margin-top: 20px;">
+                <h5 style="margin: 0 0 15px 0; color: #333; font-size: 16px; text-align: center;">🏆 Top 3 Categories</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px;">
+                    ${sortedCategories.slice(0, 3).map(([categoryId, amount], index) => {
+                        const category = this.categories.find(cat => cat.id === categoryId);
+                        const percentage = (amount / total) * 100;
+                        const medal = ['🥇', '🥈', '🥉'][index];
+                        return `
+                            <div style="text-align: center; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <div style="font-size: 24px; margin-bottom: 5px;">${medal}</div>
+                                <div style="font-size: 12px; font-weight: 600; color: #333; margin-bottom: 5px;">${category?.name || 'Unknown'}</div>
+                                <div style="font-size: 15px; font-weight: 700; color: ${category?.color || '#667eea'};">${this.formatCurrency(amount)}</div>
+                                <div style="font-size: 11px; color: #666;">${percentage.toFixed(1)}%</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }
 
     renderMonthlyTrend(expenses) {
@@ -1292,6 +1419,10 @@ class ExpenseTracker {
         const maxAmount = Math.max(...months.map(month => monthlyData[month]));
         const minHeight = 20; // Minimum bar height for visibility
         
+        // Check if mobile device
+        const isMobile = this.isMobileDevice();
+        console.log('🔍 Is mobile device:', isMobile);
+        
         let chartHTML = '<div style="padding: 20px;">';
         
         // Chart title and total
@@ -1300,115 +1431,154 @@ class ExpenseTracker {
         
         chartHTML += `
             <div style="margin-bottom: 20px; text-align: center;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 5px;">
-                    Average Monthly: ${this.formatCurrency(avgMonthly)}
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                    <div style="font-size: 14px; opacity: 0.9;">Average Monthly Spending</div>
+                    <div style="font-size: 22px; font-weight: 600; margin-top: 5px;">${this.formatCurrency(avgMonthly)}</div>
                 </div>
             </div>
         `;
         
-        // Chart bars
-        chartHTML += '<div style="display: flex; align-items: end; justify-content: space-between; min-height: 180px; margin-bottom: 15px; padding: 0 10px;">';
+        // Mobile-optimized chart bars
+        const barHeight = isMobile ? 120 : 150;
+        chartHTML += `<div style="display: flex; align-items: end; justify-content: space-between; min-height: ${barHeight + 30}px; margin-bottom: 15px; padding: 0 ${isMobile ? '5px' : '10px'};">`;
         
         months.forEach((month, index) => {
             const amount = monthlyData[month] || 0;
-            const barHeight = Math.max(minHeight, (amount / maxAmount) * 150);
+            const normalizedHeight = Math.max(minHeight, (amount / maxAmount) * barHeight);
             const date = new Date(month + '-01');
-            const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            const monthName = date.toLocaleDateString('en-US', { month: 'short', year: isMobile ? undefined : '2-digit' });
             
-            // Color gradient based on amount
+            // Enhanced color system for better mobile visibility
             const intensity = amount / maxAmount;
-            const color = `hsl(${220 + intensity * 40}, 70%, ${60 - intensity * 10}%)`;
+            const baseHue = 220;
+            const color = `hsl(${baseHue + intensity * 40}, 75%, ${55 + intensity * 10}%)`;
+            const shadowColor = `hsla(${baseHue + intensity * 40}, 75%, ${35 + intensity * 10}%, 0.3)`;
             
             chartHTML += `
-                <div style="display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 2px;">
+                <div style="display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 ${isMobile ? '1px' : '2px'};">
                     <div style="
                         width: 100%; 
-                        max-width: 60px;
-                        background: linear-gradient(to top, ${color}, ${color}CC);
-                        height: ${barHeight}px; 
+                        max-width: ${isMobile ? '45px' : '60px'};
+                        background: linear-gradient(to top, ${color}, ${color}E6);
+                        height: ${normalizedHeight}px; 
                         border-radius: 6px 6px 0 0; 
                         margin-bottom: 8px; 
                         position: relative;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 12px ${shadowColor};
+                        border: 2px solid rgba(255,255,255,0.3);
                         cursor: pointer;
+                        transition: all 0.3s ease;
                     " 
-                    onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'"
-                    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
+                    onclick="this.style.transform='scale(1.1)'; setTimeout(() => this.style.transform='scale(1)', 200)"
                     title="${monthName}: ${this.formatCurrency(amount)}">
+                        
+                        <!-- Mobile-friendly amount display -->
                         <div style="
                             position: absolute; 
                             bottom: 100%; 
                             left: 50%; 
                             transform: translateX(-50%); 
-                            font-size: 11px; 
+                            font-size: ${isMobile ? '10px' : '11px'}; 
                             color: #333; 
                             white-space: nowrap; 
-                            margin-bottom: 8px;
-                            background: rgba(255,255,255,0.9);
-                            padding: 4px 6px;
+                            margin-bottom: 6px;
+                            background: rgba(255,255,255,0.95);
+                            padding: ${isMobile ? '3px 5px' : '4px 6px'};
                             border-radius: 4px;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            opacity: 0;
-                            transition: opacity 0.3s ease;
-                        " class="amount-tooltip">
-                            ${this.formatCurrency(amount)}
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                            font-weight: 600;
+                            border: 1px solid rgba(0,0,0,0.1);
+                        ">
+                            ${isMobile ? this.formatCurrencyShort(amount) : this.formatCurrency(amount)}
                         </div>
+                        
+                        <!-- Progress indicator for mobile -->
+                        ${isMobile ? `
+                            <div style="
+                                position: absolute;
+                                bottom: 5px;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                font-size: 8px;
+                                color: white;
+                                font-weight: bold;
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                            ">
+                                ${Math.round(intensity * 100)}%
+                            </div>
+                        ` : ''}
                     </div>
-                    <span style="font-size: 12px; color: #666; font-weight: 500; text-align: center;">${monthName}</span>
+                    <span style="font-size: ${isMobile ? '11px' : '12px'}; color: #666; font-weight: 500; text-align: center; line-height: 1.2;">${monthName}</span>
                 </div>
             `;
         });
         
         chartHTML += '</div>';
         
-        // Summary stats
+        // Enhanced summary stats for mobile
         const currentMonth = months[months.length - 1];
         const previousMonth = months[months.length - 2];
-        let trendText = '';
-        let trendColor = '#666';
+        let trendHTML = '';
         
         if (previousMonth && monthlyData[currentMonth] && monthlyData[previousMonth]) {
             const trend = monthlyData[currentMonth] - monthlyData[previousMonth];
             const trendPercent = (trend / monthlyData[previousMonth]) * 100;
             
+            let trendIcon = '➡️';
+            let trendColor = '#666';
+            let trendText = 'No change from last month';
+            
             if (trend > 0) {
-                trendText = `📈 ${Math.abs(trendPercent).toFixed(1)}% increase from last month`;
+                trendIcon = '📈';
                 trendColor = '#ff6b6b';
+                trendText = `${Math.abs(trendPercent).toFixed(1)}% increase from last month`;
             } else if (trend < 0) {
-                trendText = `📉 ${Math.abs(trendPercent).toFixed(1)}% decrease from last month`;
+                trendIcon = '📉';
                 trendColor = '#51cf66';
-            } else {
-                trendText = '➡️ No change from last month';
-                trendColor = '#666';
+                trendText = `${Math.abs(trendPercent).toFixed(1)}% decrease from last month`;
             }
-        }
-        
-        if (trendText) {
-            chartHTML += `
-                <div style="text-align: center; padding-top: 15px; border-top: 1px solid #eee;">
-                    <span style="color: ${trendColor}; font-size: 14px; font-weight: 500;">
+            
+            trendHTML = `
+                <div style="
+                    text-align: center; 
+                    padding: 15px; 
+                    margin-top: 15px;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(248,249,250,0.9));
+                    border-radius: 12px;
+                    border: 1px solid rgba(0,0,0,0.05);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                ">
+                    <div style="font-size: 24px; margin-bottom: 8px;">${trendIcon}</div>
+                    <div style="color: ${trendColor}; font-size: ${isMobile ? '13px' : '14px'}; font-weight: 600; line-height: 1.3;">
                         ${trendText}
-                    </span>
+                    </div>
+                    <div style="color: #666; font-size: ${isMobile ? '11px' : '12px'}; margin-top: 5px;">
+                        Current: ${this.formatCurrency(monthlyData[currentMonth])} | Previous: ${this.formatCurrency(monthlyData[previousMonth])}
+                    </div>
                 </div>
             `;
         }
         
+        chartHTML += trendHTML;
         chartHTML += '</div>';
         
-        // Add hover effects with CSS
-        chartHTML += `
-            <style>
-                .amount-tooltip {
-                    opacity: 0 !important;
-                }
-                [title]:hover .amount-tooltip {
-                    opacity: 1 !important;
-                }
-            </style>
-        `;
-        
         container.innerHTML = chartHTML;
+    }
+
+    // Helper methods for mobile compatibility
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               window.innerWidth <= 768;
+    }
+
+    formatCurrencyShort(amount) {
+        if (amount >= 1000000) {
+            return `₱${(amount / 1000000).toFixed(1)}M`;
+        } else if (amount >= 1000) {
+            return `₱${(amount / 1000).toFixed(1)}K`;
+        } else {
+            return `₱${amount.toFixed(0)}`;
+        }
     }
 
     generateFinancialTips(income, expenses, categoryTotals, netBalance) {
