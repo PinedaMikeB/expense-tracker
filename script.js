@@ -3,6 +3,7 @@ class ExpenseTracker {
     constructor() {
         this.expenses = [];
         this.income = [];
+        this.pettyCash = [];
         this.categories = this.getDefaultCategories();
         this.incomeCategories = this.getDefaultIncomeCategories();
         this.selectedForPayment = new Set();
@@ -75,6 +76,8 @@ class ExpenseTracker {
         this.renderExpenses();
         this.renderIncome();
         this.renderReimbursements();
+        this.renderPettyCash();
+        this.updatePettyCashSummary();
         this.renderCategories();
         this.renderAnalytics();
         this.setDefaultDate();
@@ -91,6 +94,7 @@ class ExpenseTracker {
             { id: 'entertainment', name: 'Entertainment', color: '#feca57' },
             { id: 'shopping', name: 'Shopping', color: '#ff9ff3' },
             { id: 'business', name: 'Business', color: '#54a0ff' },
+            { id: 'petty-cash', name: 'Petty Cash', color: '#fd79a8' },
             { id: 'other', name: 'Other', color: '#5f27cd' }
         ];
     }
@@ -112,8 +116,10 @@ class ExpenseTracker {
         const today = new Date().toISOString().split('T')[0];
         const expenseDate = document.getElementById('expense-date');
         const incomeDate = document.getElementById('income-date');
+        const pettyCashDate = document.getElementById('petty-cash-date');
         if (expenseDate) expenseDate.value = today;
         if (incomeDate) incomeDate.value = today;
+        if (pettyCashDate) pettyCashDate.value = today;
     }
 
     setupEventListeners() {
@@ -154,6 +160,18 @@ class ExpenseTracker {
             console.log('Category form listener attached');
         } else {
             console.error('Category form not found!');
+        }
+
+        const pettyCashForm = document.getElementById('petty-cash-form');
+        if (pettyCashForm) {
+            pettyCashForm.addEventListener('submit', (e) => {
+                console.log('Petty cash form submitted');
+                e.preventDefault();
+                this.addPettyCashTransaction(e);
+            });
+            console.log('Petty cash form listener attached');
+        } else {
+            console.error('Petty cash form not found!');
         }
     }
 
@@ -345,6 +363,11 @@ class ExpenseTracker {
         localStorage.setItem('income', JSON.stringify(this.income));
     }
 
+    savePettyCash() {
+        console.log('Saving petty cash to localStorage');
+        localStorage.setItem('pettyCash', JSON.stringify(this.pettyCash));
+    }
+
     saveCategories() {
         console.log('Saving categories to localStorage');
         localStorage.setItem('categories', JSON.stringify(this.categories));
@@ -379,14 +402,33 @@ class ExpenseTracker {
             });
             console.log('Income categories loaded:', this.incomeCategories.length);
         }
+
+        // Load petty cash categories (same as expense categories, excluding petty-cash itself)
+        const pettyCashCategorySelect = document.getElementById('petty-cash-category');
+        if (pettyCashCategorySelect) {
+            pettyCashCategorySelect.innerHTML = '<option value="">Select Category</option>';
+            // Filter out 'petty-cash' category from dropdown to prevent circular allocation
+            this.categories.filter(cat => cat.id !== 'petty-cash').forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                pettyCashCategorySelect.appendChild(option);
+            });
+            console.log('Petty cash categories loaded:', this.categories.length - 1);
+        }
     }
 
     updateSummary() {
         console.log('Updating summary cards');
         
-        // Calculate totals
+        // Calculate totals (exclude petty cash allocations)
         const totalIncome = this.income.reduce((sum, income) => sum + income.amount, 0);
-        const totalExpenses = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const totalExpenses = this.expenses
+            .filter(expense => {
+                const category = this.categories.find(cat => cat.id === expense.category);
+                return category?.name !== 'Petty Cash';
+            })
+            .reduce((sum, expense) => sum + expense.amount, 0);
         const pendingReimbursements = this.expenses
             .filter(expense => expense.isReimbursement && !expense.isPaid)
             .reduce((sum, expense) => sum + expense.amount, 0);
@@ -419,6 +461,7 @@ class ExpenseTracker {
     loadFromLocalStorage() {
         this.expenses = JSON.parse(localStorage.getItem('expenses')) || [];
         this.income = JSON.parse(localStorage.getItem('income')) || [];
+        this.pettyCash = JSON.parse(localStorage.getItem('pettyCash')) || [];
         this.categories = JSON.parse(localStorage.getItem('categories')) || this.getDefaultCategories();
         this.incomeCategories = JSON.parse(localStorage.getItem('incomeCategories')) || this.getDefaultIncomeCategories();
     }
@@ -451,6 +494,19 @@ class ExpenseTracker {
                 .get();
             
             this.income = incomeSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            // Load petty cash
+            const pettyCashSnapshot = await window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('pettyCash')
+                .orderBy('timestamp', 'desc')
+                .get();
+            
+            this.pettyCash = pettyCashSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
@@ -552,6 +608,40 @@ class ExpenseTracker {
         }
     }
 
+    async savePettyCashToCloud() {
+        if (!this.currentUser) {
+            this.savePettyCash(); // Fallback to localStorage
+            return;
+        }
+        
+        try {
+            const batch = window.db.batch();
+            const userPettyCashRef = window.db
+                .collection('users')
+                .doc(this.currentUser.uid)
+                .collection('pettyCash');
+            
+            // Clear existing petty cash and add new ones
+            const existingPettyCash = await userPettyCashRef.get();
+            existingPettyCash.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            // Add current petty cash
+            this.pettyCash.forEach(transaction => {
+                const docRef = userPettyCashRef.doc(transaction.id.toString());
+                batch.set(docRef, transaction);
+            });
+            
+            await batch.commit();
+            console.log('✅ Petty cash saved to cloud');
+            
+        } catch (error) {
+            console.error('❌ Error saving petty cash to cloud:', error);
+            this.savePettyCash(); // Fallback to localStorage
+        }
+    }
+
     async saveCategoriesToCloud() {
         if (!this.currentUser) {
             this.saveCategories(); // Fallback to localStorage
@@ -582,6 +672,8 @@ class ExpenseTracker {
         this.renderExpenses();
         this.renderIncome();
         this.renderReimbursements();
+        this.renderPettyCash();
+        this.updatePettyCashSummary();
         this.renderCategories();
         this.renderAnalytics();
         this.loadCategories();
@@ -626,7 +718,15 @@ class ExpenseTracker {
         
         tbody.innerHTML = '';
 
-        const regularExpenses = this.expenses.filter(expense => !expense.isReimbursement);
+        const regularExpenses = this.expenses.filter(expense => {
+            if (expense.isReimbursement) return false;
+            
+            // Check if this is a petty cash allocation by category name
+            const category = this.categories.find(cat => cat.id === expense.category);
+            const isPettyCashAllocation = category?.name === 'Petty Cash';
+            
+            return !isPettyCashAllocation;
+        });
 
         if (regularExpenses.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No expenses recorded yet</td></tr>';
@@ -796,8 +896,12 @@ class ExpenseTracker {
     }
 
     renderAnalytics() {
-        // Enhanced analytics calculations
-        const totalExpenses = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+        // Enhanced analytics calculations (excluding petty cash allocations)
+        const actualExpenses = this.expenses.filter(expense => {
+            const category = this.categories.find(cat => cat.id === expense.category);
+            return category?.name !== 'Petty Cash';
+        });
+        const totalExpenses = actualExpenses.reduce((sum, expense) => sum + expense.amount, 0);
         const totalIncome = this.income.reduce((sum, income) => sum + income.amount, 0);
         const avgDaily = totalExpenses / 30;
         const pendingReimbursements = this.expenses
@@ -805,9 +909,9 @@ class ExpenseTracker {
             .reduce((sum, expense) => sum + expense.amount, 0);
         const monthlyNet = totalIncome - totalExpenses;
 
-        // Find top expense category
+        // Find top expense category (excluding petty cash allocations)
         const categoryTotals = {};
-        this.expenses.forEach(expense => {
+        actualExpenses.forEach(expense => {
             if (!categoryTotals[expense.category]) {
                 categoryTotals[expense.category] = 0;
             }
@@ -1074,6 +1178,7 @@ class ExpenseTracker {
             await Promise.all([
                 this.saveExpensesToCloud(),
                 this.saveIncomeToCloud(),
+                this.savePettyCashToCloud(),
                 this.saveCategoriesToCloud()
             ]);
             
@@ -1203,6 +1308,171 @@ class ExpenseTracker {
                     this.closePaymentModal();
                 }
             };
+        }
+    }
+
+    // Petty Cash Functions
+    addPettyCashTransaction(event) {
+        event.preventDefault();
+        
+        const description = document.getElementById('petty-cash-description').value.trim();
+        const amount = parseFloat(document.getElementById('petty-cash-amount').value);
+        const category = document.getElementById('petty-cash-category').value;
+        const date = document.getElementById('petty-cash-date').value;
+        
+        if (!description || !amount || !category || !date) {
+            this.showNotification('Please fill in all fields', 'error');
+            return;
+        }
+
+        // Check if there's enough petty cash balance
+        const currentBalance = this.getPettyCashBalance();
+        if (amount > currentBalance) {
+            this.showNotification(`Insufficient petty cash balance. Current balance: ${this.formatCurrency(currentBalance)}`, 'error');
+            return;
+        }
+
+        // Add petty cash transaction
+        const pettyCashTransaction = {
+            id: Date.now() + Math.random(),
+            description,
+            amount,
+            category,
+            date,
+            timestamp: new Date().toISOString()
+        };
+
+        this.pettyCash.push(pettyCashTransaction);
+
+        // Also add as regular expense
+        const expense = {
+            id: Date.now() + Math.random() + 1,
+            description: `[Cash] ${description}`,
+            amount,
+            category,
+            date,
+            isReimbursement: false,
+            isPaid: false,
+            paymentDate: null,
+            timestamp: new Date().toISOString()
+        };
+
+        this.expenses.push(expense);
+
+        // Save and update UI
+        this.savePettyCash();
+        this.saveExpenses();
+        this.saveExpensesToCloud();
+        this.savePettyCashToCloud();
+        this.updateUI();
+        this.resetForm('petty-cash-form');
+        this.setDefaultDate();
+        
+        this.showNotification('Cash transaction recorded successfully!', 'success');
+    }
+
+    getPettyCashBalance() {
+        // Calculate balance: allocated amount - spent amount
+        const allocated = this.expenses
+            .filter(expense => {
+                const category = this.categories.find(cat => cat.id === expense.category);
+                return category?.name === 'Petty Cash';
+            })
+            .reduce((sum, expense) => sum + expense.amount, 0);
+            
+        const spent = this.pettyCash
+            .reduce((sum, transaction) => sum + transaction.amount, 0);
+            
+        return allocated - spent;
+    }
+
+    getPettyCashAllocated() {
+        return this.expenses
+            .filter(expense => {
+                const category = this.categories.find(cat => cat.id === expense.category);
+                return category?.name === 'Petty Cash';
+            })
+            .reduce((sum, expense) => sum + expense.amount, 0);
+    }
+
+    getPettyCashSpent() {
+        return this.pettyCash
+            .reduce((sum, transaction) => sum + transaction.amount, 0);
+    }
+
+    updatePettyCashSummary() {
+        const balanceEl = document.getElementById('petty-cash-balance');
+        const spentEl = document.getElementById('petty-cash-spent');
+        const allocatedEl = document.getElementById('petty-cash-allocated');
+        
+        if (balanceEl) balanceEl.textContent = this.formatCurrency(this.getPettyCashBalance());
+        if (spentEl) spentEl.textContent = this.formatCurrency(this.getPettyCashSpent());
+        if (allocatedEl) allocatedEl.textContent = this.formatCurrency(this.getPettyCashAllocated());
+    }
+
+    renderPettyCash() {
+        const tbody = document.getElementById('petty-cash-tbody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+
+        if (this.pettyCash.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No cash transactions recorded yet</td></tr>';
+            return;
+        }
+
+        // Sort by date (newest first)
+        const sortedTransactions = [...this.pettyCash].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sortedTransactions.forEach(transaction => {
+            const category = this.categories.find(cat => cat.id === transaction.category);
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${this.formatDate(transaction.date)}</td>
+                <td>${transaction.description}</td>
+                <td>
+                    <span style="display: inline-flex; align-items: center; gap: 8px;">
+                        <span style="width: 12px; height: 12px; background: ${category?.color || '#ccc'}; border-radius: 50%;"></span>
+                        ${category?.name || 'Unknown'}
+                    </span>
+                </td>
+                <td>${this.formatCurrency(transaction.amount)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-danger btn-sm" onclick="expenseTracker.deletePettyCashTransaction(${transaction.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    deletePettyCashTransaction(id) {
+        if (confirm('Are you sure you want to delete this cash transaction?')) {
+            // Find the transaction first
+            const transaction = this.pettyCash.find(t => t.id === id);
+            
+            // Remove from petty cash
+            this.pettyCash = this.pettyCash.filter(t => t.id !== id);
+            
+            // Also remove the corresponding expense
+            if (transaction) {
+                this.expenses = this.expenses.filter(expense => 
+                    !(expense.description === `[Cash] ${transaction.description}` && 
+                      expense.amount === transaction.amount && 
+                      expense.date === transaction.date)
+                );
+            }
+            
+            this.savePettyCash();
+            this.saveExpenses();
+            this.saveExpensesToCloud();
+            this.savePettyCashToCloud();
+            this.updateUI();
+            this.showNotification('Cash transaction deleted successfully!', 'success');
         }
     }
 }
